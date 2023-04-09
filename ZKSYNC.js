@@ -1,0 +1,974 @@
+'use strict';
+const { ethers, Contract,BigNumber  } = require("ethers");
+const { defaultAbiCoder } = ethers.utils;
+const zksync  = require("zksync-web3");
+const fs = require("fs");
+const Buffer = require('buffer').Buffer;
+//const config = JSON.parse(fs.readFileSync("configTestnet.json", "utf-8"));
+const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
+const util = require('util');
+
+const {
+    VERSION,
+    ADDRESS,
+    PRIVATE_KEY,
+    ZK_RPC_URL,
+    ETH_RPC_URL,
+    SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
+    SYNCSWAP_ROUTER_ADDRESS,
+    DAI_ADDRESS,
+    Mute_Router_Contract,
+    MintSquareContract,
+    SpaceFi_Router_Contract,
+    wETH_ADDRESS,
+    USDC_ADDRESS
+} = config;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+
+
+// Read ABI from files
+const classicPoolFactoryAbi = JSON.parse(fs.readFileSync("./ABIs/ClassicPoolFactoryABI.txt", "utf-8"));
+const SyncswapPoolABI = JSON.parse(fs.readFileSync("./ABIs/SyncSwapPoolABI.txt", "utf-8"));
+const SyncswapRouterAbi = JSON.parse(fs.readFileSync("./ABIs/SyncSwapRouterABI.txt", "utf-8"));
+const erc20Abi = JSON.parse(fs.readFileSync("./ABIs/Erc20ABI.json", "utf-8"));
+const mintsquareAbi = JSON.parse(fs.readFileSync("./ABIs/mintsquareABI.json", "utf-8"));
+const SpaceFiABI = JSON.parse(fs.readFileSync("./ABIs/SpaceFiABI.txt", "utf-8"));
+const MuteFactoryABI = JSON.parse(fs.readFileSync("./ABIs/MuteFactoryABI.json", "utf-8"));
+const MutePairABI = JSON.parse(fs.readFileSync("./ABIs/MutePairABI.json", "utf-8"));
+const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "utf-8"));
+
+
+const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
+const zk_provider = new zksync.Provider(ZK_RPC_URL);
+
+
+
+
+async function checkETHBalances(signer,address=null) {
+    const balanceAddress = address ? address : signer.address;
+    const balance= await zk_provider.getBalance(balanceAddress)
+    console.log("The balance of", balanceAddress," ETH is :",ethers.utils.formatEther(balance));
+    return balance;
+}
+async function checkERC20Balances(signer,tokenAddress) {
+
+    const TOKEN =new Contract(tokenAddress,erc20Abi,signer)
+    const tokenDecimal= await TOKEN.decimals()
+    const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(signer.address);
+    const TOKENBalance = Number(
+        ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
+    );
+
+    console.log("The  balance of swapped token  is: ", TOKENBalance);
+    return expandedWTOKENBalanceBefore;
+}
+
+
+
+class ZKSYNC {
+    constructor(Num, address, privateKey) {
+        this.zk_provider = zk_provider;
+        this.eth_provider = eth_provider;
+        this.Num = Num;
+        this.name = address;
+        this.address = address;
+        this.privateKey = privateKey;
+        this.signer = new zksync.Wallet(privateKey, zk_provider,eth_provider);
+        this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
+        this.tasks = [
+            "deposit_All_funds_L1_to_L2",
+            "Swap_Usdc_On_Syncswap",
+            "Swap_Usdc_On_Mute",
+            "Swap_Usdc_On_Spacefi",
+            "Mint_NFT_On_Mintsquare",
+            "Swap_Usdc_to_300_On_Syncswap",
+            "Add_Liquidity_On_Syncswap"
+        ];
+        this.completedTasks = new Array(this.tasks.length).fill(false);;
+    }
+
+    async deposit_All_funds_L1_to_L2() {
+        console.log(`[${this.Num}][${this.name}] deposit_All_funds_L1_to_L2 is running...`);
+        try {
+            const Hash = await this.depositAllEthFromL1toL2();
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Error depositing all ETH from L1 to L2: ${error}`);
+            return;
+        }
+        await this.completeTask(1);
+
+    }
+
+    async Swap_Usdc_On_Syncswap(usdcAmount = null) {
+        console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Syncswap is running...`);
+
+        try {
+            //const randomMoney = BigNumber.from(5000)
+            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
+            console.log(randomMoney)
+            const estimateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
+            console.log("estimateETH is ", estimateETH);
+            const Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, estimateETH)
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Syncswap: ${error}`);
+            return;
+        }
+
+        await this.completeTask(2);
+    }
+    async Swap_Usdc_On_Mute(usdcAmount = null) {
+        console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Mute is running...`);
+        try {
+            //const randomMoney = BigNumber.from(5000000)
+            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
+            console.log(randomMoney)
+            const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
+            const Hash = await this.swapEthForTokenOnMute(USDC_ADDRESS, esitmateETH)
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Mute: ${error}`);
+            return;
+        }
+        await this.completeTask(3);
+    }
+    async Swap_Usdc_On_Spacefi(usdcAmount = null) {
+        console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Spacefi is running...`);
+        try {
+            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
+            console.log(randomMoney)
+            const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
+            const Hash = await this.swapEthForTokenOnSpaceFi(USDC_ADDRESS, esitmateETH)
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Spacefi: ${error}`);
+            return;
+        }
+        await this.completeTask(4);
+    }
+    async Mint_NFT_On_Mintsquare() {
+        console.log(`[${this.Num}][${this.name}] Mint_NFT_On_Mintsquare is running...`);
+
+        try {
+            const Hash = await this.mintRandomOnMintSquare();
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Error Mint_NFT_On_Mintsquare: ${error}`);
+            return;
+        }
+
+        await this.completeTask(5);
+
+
+    }
+    async Swap_Usdc_to_300_On_Syncswap(TokenAmount = null) {
+        console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_300_On_Syncswap is running...`);
+        try {
+            const TokenContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
+            const tokenDecimal = await TokenContract.decimals();
+            const TokenBalanceInWei = await checkERC20Balances(this.signer, USDC_ADDRESS);
+            const TokenBalance = ethers.utils.formatUnits(TokenBalanceInWei, tokenDecimal)
+            const TargetTokenAmount = TokenAmount ? TokenAmount : Math.floor(Math.random() * 5 + 298)
+            let TokenDiff = TargetTokenAmount - TokenBalance
+            const TokenDiffFixed = TokenDiff.toFixed(2);
+            const TokenDiffNumber = parseFloat(TokenDiffFixed);
+            if (TokenDiffNumber <=0) {
+                return;
+            }
+            console.log(TokenDiff.toString())
+            const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, TokenDiffNumber)
+            const Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, esitmateETH)
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_300_On_Syncswap: ${error}`);
+            return;
+        }
+        await this.completeTask(6);
+
+
+    }
+    async Add_Liquidity_On_Syncswap() {
+        console.log(`[${this.Num}][${this.name}] Add_Liquidity_On_Syncswap is running...`);
+        try {
+            const TokenContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
+            const tokenDecimal = await TokenContract.decimals();
+            let TokenBalance = await checkERC20Balances(this.signer, USDC_ADDRESS);
+            const tokenAmount = ethers.utils.formatUnits(TokenBalance, tokenDecimal)
+            const Hash = await this.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, tokenAmount)
+            console.log(Hash)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Add_Liquidity_On_Syncswap: ${error}`);
+            return;
+        }
+        await this.completeTask(7);
+
+
+    }
+
+    getNextTask() {
+        const remainingTasks = this.getRemainingTasks();
+        if (remainingTasks.length === 7) {
+            return 'deposit_All_funds_L1_to_L2';
+        }
+        if (remainingTasks.length === 2) {
+            return 'Swap_Usdc_to_300_On_Syncswap';
+        }
+        if (remainingTasks.length === 1) {
+            return 'Add_Liquidity_On_Syncswap';
+        }
+        const remainingRandomTasks = remainingTasks.filter(
+            task => !['deposit_All_funds_L1_to_L2', 'Swap_Usdc_to_300_On_Syncswap', 'Add_Liquidity_On_Syncswap'].includes(task)
+        );
+        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+        return remainingRandomTasks[randomIndex];
+    }
+
+    async completeTask(taskNumber) {
+        const taskName = this.tasks[taskNumber - 1];
+        console.log(`[${this.name}] Completing task: ${taskName}`);
+        this.completedTasks[taskNumber - 1] = true;
+        await this.saveState();
+    }
+
+    isCompleted() {
+        return this.completedTasks.every(task => task);
+    }
+
+    async saveState() {
+        const data = JSON.stringify({ completedTasks: this.completedTasks });
+        const path = `./projects/${this.name}.json`;
+        await fs.promises.writeFile(path, data);
+    }
+
+    loadState() {
+        try {
+            const path = `./projects/${this.name}.json`;
+            let data;
+            if (fs.existsSync(path)) {
+                data = fs.readFileSync(path);
+            } else {
+                console.log(`[${this.name}] Initializing project state...`);
+                const initialData = { completedTasks };
+                fs.writeFileSync(path, JSON.stringify(initialData));
+                data = JSON.stringify(initialData);
+            }
+            const { completedTasks } = JSON.parse(data);
+            this.completedTasks = completedTasks;
+        }
+        catch (e) {
+            console.log(`[${this.name}] Initializing project state error...`);
+        }
+    }
+
+
+    getRemainingTasks() {
+        return this.tasks.filter((_, i) => !this.completedTasks[i]);
+    }
+
+
+
+
+
+
+
+
+    async depositEthFromL1toL2(ethAmount) {
+        try {
+            await checkETHBalances(this.signer)
+            const amount= ethers.utils.parseUnits(ethAmount.toString(),18)
+            if (amount.lte(0)) {
+                console.log('ethAmount should bigger than 0');
+                return;
+            }
+            console.log(`I will tranfer money ${ethers.utils.formatEther(amount)} eth from L1 to L2`)
+            const gasPrice = await this.eth_provider.getGasPrice();
+            const ZKgasPrice = await this.zk_provider.getGasPrice();
+            console.log("gasPrice is:", ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei')
+            console.log("ZKgasPrice is:", ethers.utils.formatUnits(ZKgasPrice, 'gwei'), 'gwei')
+            const balance = await this.signer.getBalanceL1()
+            console.log("balance on L1：",ethers.utils.formatEther(balance))
+            if (balance.lte(amount)) {
+                console.log('Insufficient balance,ethAmount is over than balance ');
+                return;
+            }
+            const etx = {
+                token: zksync.utils.ETH_ADDRESS,
+                amount: amount,
+                            }
+            // 估算gas费用
+            const gasLimit = await this.signer.estimateGasDeposit(etx)
+            console.log("gasLimit is",gasLimit.toString())
+            // 计算gas费用
+            const gasFee = gasPrice.mul(gasLimit).mul(2);
+            const ZKgasFee = ZKgasPrice.mul(694246)
+            console.log("gasFee is", ethers.utils.formatEther(gasFee))
+            console.log("ZKgasFee is ", ethers.utils.formatEther(ZKgasFee))
+            // 计算实际转账金额
+            const esBalance = balance.sub(gasFee).sub(ZKgasFee).sub(amount);
+            console.log("after deposit,the balance is",esBalance.toString())
+            if (esBalance.lte(0)) {
+                console.log('ethAmount plus gasFee  is over than balance,Insufficient balance，please set lower ethAmount ');
+                return;
+            }
+            const tx = {
+                token: zksync.utils.ETH_ADDRESS,
+                amount: amount,
+                gasLimit:gasLimit,
+            }
+            const deposit = await this.signer.deposit(tx);
+            // Await processing of the deposit on L1
+            const ethereumTxReceipt = await deposit.waitL1Commit();
+            console.log('L1ethereumTxReceipt:',ethereumTxReceipt)
+            // Await processing the deposit on zkSync
+            const depositReceipt = await deposit.wait();
+            console.log('depositReceipt:',depositReceipt)
+            const L1balanceAfterDeposit = await this.signer.getBalanceL1()
+            console.log("The balance of ETH on L1 is :",ethers.utils.formatEther(L1balanceAfterDeposit))
+            const L2balanceAfterDeposit = await this.signer.getBalance()
+            console.log("The balance of ETH on L2 is :", ethers.utils.formatEther(L2balanceAfterDeposit))
+            console.log(deposit.hash)
+            return deposit.hash
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+
+    async depositAllEthFromL1toL2() {
+        try {
+            await checkETHBalances(this.signer)
+            const currentGasPrice  = await this.eth_provider.getGasPrice();
+            console.log("currentGasPrice is:",ethers.utils.formatUnits(currentGasPrice,'gwei'),'gwei')
+            const incrementGwei = Math.floor(Math.random() * 5);  //随机增加Eth的主网gasPrice，0-4
+            const gasPrice = currentGasPrice.add(ethers.utils.parseUnits(incrementGwei.toString(), 'gwei'));
+            console.log("Set gasPrice is:", ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei')
+            const ZKCurrentGasPrice = await this.zk_provider.getGasPrice();
+            const incrementZKGwei = 0.1;  //随机ZKSYNC的主网gasPrice to 0.26
+            const ZKgasPrice = ZKCurrentGasPrice.add(ethers.utils.parseUnits(incrementZKGwei.toString(), 'gwei'));
+            console.log("ZKgasPrice is:", ethers.utils.formatUnits(ZKgasPrice, 'gwei'), 'gwei')
+            const balance = await this.signer.getBalanceL1()
+            console.log("balance on L1：", ethers.utils.formatEther(balance))
+            const ZKgasFee = ZKgasPrice.mul(694246)
+            console.log("ZKgasFee is ", ethers.utils.formatEther(ZKgasFee))
+            // 计算实际转账金额
+            const esBalance = balance.sub(gasPrice.mul(125091).mul(2)).sub(ZKgasFee);
+            console.log("estimate balance is",esBalance.toString())
+            if (esBalance.lte(0)) {
+                console.log('Insufficient balance');
+                return;
+            }
+            const etx = {
+                token: zksync.utils.ETH_ADDRESS,
+                amount: esBalance,
+                gasLimit: 125115,
+            }
+            // 估算gas费用
+            const gasLimit = await this.signer.estimateGasDeposit(etx)
+            console.log("gasLimit is",gasLimit.toString())
+            const gasFee = gasPrice.mul(gasLimit);
+            console.log("gasFee is", ethers.utils.formatEther(gasFee))
+
+            const actualAmount = balance.sub(gasFee).sub(ZKgasFee);
+            console.log(gasFee.toString())
+            console.log("Actual Eth Amount is",ethers.utils.formatEther(actualAmount))
+            if (actualAmount.lt(0)) {
+                console.log('Insufficient balance for gas fee');
+                return;
+            }
+            const tx = {
+                token: zksync.utils.ETH_ADDRESS,
+                amount: actualAmount,
+                gasLimit:gasLimit,
+                gasPrice:gasPrice,
+            }
+            const deposit = await this.signer.deposit(tx);
+            // Await processing of the deposit on L1
+            const ethereumTxReceipt = await deposit.waitL1Commit();
+            console.log('L1ethereumTxReceipt:',ethereumTxReceipt)
+            // Await processing the deposit on zkSync
+            const depositReceipt = await deposit.wait();
+            console.log('depositReceipt:',depositReceipt)
+            const L1balanceAfterDeposit = await this.signer.getBalanceL1()
+            console.log("The balance of ETH on L1 is :",ethers.utils.formatEther(L1balanceAfterDeposit))
+            const L2balanceAfterDeposit = await this.signer.getBalance()
+            console.log("The balance of ETH on L2 is :", ethers.utils.formatEther(L2balanceAfterDeposit))
+            console.log(deposit.hash)
+            return deposit.hash;
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async transferEthOnL2(address, amountInEther ) {
+    try {
+        console.log(util.debuglog('myFunction')('Called'));
+
+        // Convert amount to wei
+        const amount = ethers.utils.parseEther(amountInEther.toString());
+        // Validate and convert address to checksum format
+        const formattedAddress = ethers.utils.getAddress(address);
+        const tx = {
+            to: formattedAddress,
+            token: zksync.utils.ETH_ADDRESS,
+            amount,
+        }
+        const balance = await this.signer.getBalance()
+        await checkETHBalances(this.signer,formattedAddress)
+        if (balance.lt(amount)) {
+            console.log('Insufficient balance');
+            return;
+        }
+        const transfer = await this.signer.transfer(tx);
+        const committedTxReceipt = await transfer.wait();
+        console.log(transfer.hash);
+        // const finalizedTxReceipt = await transfer.waitFinalize();
+        // console.log(finalizedTxReceipt);
+        // const finalizedEthBalance = await this.zk_provider.getBalance(
+        //     formattedAddress
+        // );
+        // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
+        // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+    }
+    catch (e) {
+        console.log(e)
+
+    }
+}
+
+
+    async withdrawEthFromL2toL1(ethAmount) {
+        try {
+
+            await checkETHBalances(this.signer)
+            let balanceOnL1= await eth_provider.getBalance(this.signer.address)
+            console.log("The balance of", this.signer.address," ETH is :",ethers.utils.formatEther(balanceOnL1));
+            const amount = ethers.utils.parseEther(ethAmount.toString());
+            const balance = await this.signer.getBalance()
+            if (balance.lt(amount)) {
+                console.log('Insufficient balance');
+                return;
+            }
+            const withdraw = await this.signer.withdraw({
+                token: zksync.utils.ETH_ADDRESS,
+                amount,
+            });
+
+            // Await processing the withdraw on zkSync L2
+            const withdrawReceipt = await withdraw.wait();
+            console.log('withdrawReceipt:', withdrawReceipt)
+            await checkETHBalances(this.signer)
+            balanceOnL1= await eth_provider.getBalance(this.signer.address)
+            console.log("The balance of", this.signer.address, " ETH is :", ethers.utils.formatEther(balanceOnL1));
+            return withdraw.hash
+            // Await processing the withdraw on zkSync L1
+            // const withdrawReceiptFinalize = await withdraw.waitFinalize();
+            // console.log('withdrawReceiptFinalize:', withdrawReceiptFinalize)
+
+            //
+            //
+            // //Retrieving the current (committed) zkSync ETH balance of an account
+            // const committedEthBalance = await this.signer.getBalance(
+            //     zksync.utils.ETH_ADDRESS
+            // );
+            // const committedEthBalanceInEther = ethers.utils.formatEther(committedEthBalance);
+            // console.log(committedEthBalanceInEther);
+            // // Retrieving the ETH balance of an account in the last finalized zkSync block.
+            // const finalizedEthBalance = await this.signer.getBalance(
+            //     zksync.utils.ETH_ADDRESS,
+            //     "finalized"
+            // );
+            // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance);
+            // console.log(finalizedEthBalanceInEther);
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async swapEthForTokenOnSyncSwap(tokenAddress, ethAmount) {
+        // The factory of the Classic Pool.
+        const classicPoolFactory = new Contract(
+            SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
+            classicPoolFactoryAbi,
+            this.signer
+        );
+        const router = new Contract(SYNCSWAP_ROUTER_ADDRESS, SyncswapRouterAbi, this.signer);
+        const WETH = await router.wETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        console.log(WETH_ADDRESS)
+        // Gets the address of the ETH/DAI Classic Pool.
+        // wETH is used internally by the pools.
+        const poolAddress = await classicPoolFactory.getPool(WETH_ADDRESS, tokenAddress);
+
+        // Checks whether the pool exists.
+        if (poolAddress === ZERO_ADDRESS) {
+            throw Error('Pool not exists');
+        }
+
+        // Gets the reserves of the pool.
+        const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
+        const reserves = await pool.getReserves(); // Returns tuple (uint, uint)
+
+        // Sorts the reserves by token addresses.
+        const [reserveETH, reserveToken] = WETH_ADDRESS < tokenAddress ? reserves : [reserves[1], reserves[0]];
+        console.log("reserveETH on pool",reserveETH);
+        console.log("reserveToken on pool",reserveToken);
+        // The input amount of ETH
+        const value = ethers.utils.parseEther(ethAmount.toString());
+        // Constructs the swap paths with steps.
+        // Determine withdraw mode, to withdraw native ETH or wETH on last step.
+        // 0 - vault internal transfer
+        // 1 - withdraw and unwrap to naitve ETH
+        // 2 - withdraw and wrap to wETH
+        const withdrawMode = 1; // 1 or 2 to withdraw to user's wallet
+
+        const swapData = defaultAbiCoder.encode(
+            ["address", "address", "uint8"],
+            [WETH_ADDRESS, this.signer.address, withdrawMode], // tokenIn, to, withdraw mode
+        );
+
+        // We have only 1 step.
+        const steps = [{
+            pool: poolAddress,
+            data: swapData,
+            callback: ZERO_ADDRESS, // we don't have a callback
+            callbackData: '0x',
+        }];
+
+        // If we want to use the native ETH as the input token,
+        // the `tokenIn` on path should be replaced with the zero address.
+        // Note: however we still have to encode the wETH address to pool's swap data.
+        const nativeETHAddress = ZERO_ADDRESS;
+
+        // We have only 1 path.
+        const paths = [{
+            steps: steps,
+            tokenIn: nativeETHAddress,
+            amountIn: value,
+        }];
+        await checkERC20Balances(this.signer,tokenAddress)
+        await checkETHBalances(this.signer)
+
+        // const approve = await WETH.approve(router.address, value);
+        // await approve.wait();
+		const overrides = {
+		  value: value,
+		};
+        // Note: checks approval for ERC20 tokens.
+        // The router will handle the deposit to the pool's vault account.
+        const gasLimit = await router.estimateGas.swap(
+            paths, // paths
+            0, // amountOutMin // Note: ensures slippage here
+            BigNumber.from(Math.floor(Date.now() / 1000)).add(1800), // deadline // 30 minutes
+            overrides,
+        );
+        const currentGasPrice  = await this.zk_provider.getGasPrice();
+        const gasFee =gasLimit.mul(currentGasPrice)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee).sub(value);
+        console.log("estimate balance is",ethers.utils.formatEther(esBalance.toString()))
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance of ',this.signer.address);
+            throw Error('Eth is insufficent ,please check the  balance ');
+        }
+        const response = await router.swap(
+            paths, // paths
+            0, // amountOutMin // Note: ensures slippage here
+            BigNumber.from(Math.floor(Date.now() / 1000)).add(1800), // deadline // 30 minutes
+			overrides,
+        );
+
+		let tx_receipt = await response.wait();
+		console.log("receipt: ", tx_receipt);
+        await checkERC20Balances(this.signer,tokenAddress)
+        await checkETHBalances(this.signer)
+        return response.hash
+    }
+
+    async addLiquidityEthAndUsdcOnSyncSwap(tokenAddress,tokenAmount) {
+
+        const classicPoolFactory = new Contract(
+            SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
+            classicPoolFactoryAbi,
+            this.signer
+        );
+        const router = new Contract(SYNCSWAP_ROUTER_ADDRESS, SyncswapRouterAbi, this.signer);
+        const WETH = await router.wETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        // Gets the address of the ETH/DAI Classic Pool.
+        // wETH is used internally by the pools.
+        const poolAddress = await classicPoolFactory.getPool(WETH_ADDRESS, tokenAddress);
+        console.log("PoolAddress is :" ,poolAddress)
+        // Checks whether the pool exists.
+        if (poolAddress === ZERO_ADDRESS) {
+            throw Error('Pool not exists');
+        }
+
+        // Gets the reserves of the pool.
+        const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
+        const reserves = await pool.getReserves(); // Returns tuple (uint, uint)
+        const TokenContract = new ethers.Contract(tokenAddress, erc20Abi, this.signer);
+        const tokenDecimal = await TokenContract.decimals();
+        let TokenBalance = await checkERC20Balances(this.signer,tokenAddress);
+        const EthBalance = await this.signer.getBalance()
+        // Sorts the reserves by token addresses.
+        const [reserveETH, reserveToken] = WETH_ADDRESS < tokenAddress ? reserves : [reserves[1], reserves[0]];
+        console.log("reserveETH on pool",ethers.utils.formatEther(reserveETH));
+        console.log("reserveToken on pool",ethers.utils.formatUnits(reserveToken,tokenDecimal.toString()));
+        const lp = await pool.balanceOf(this.signer.address)
+        console.log("我的地址所占比例",ethers.utils.formatEther(lp.toString()))
+        //const TokenForPool   =  ethers.utils.parseUnits(BigNumber.from(tokenAmount.toString()).toString(), tokenDecimal);  //测试网的大数专用
+        const TokenForPool   =  ethers.utils.parseUnits(tokenAmount.toString(), tokenDecimal);
+        console.log(`Token balance: ${ethers.utils.formatUnits(TokenBalance.toString(),tokenDecimal)}`);
+        console.log(`I will offer ${tokenAmount} token  for add liquidity `);
+        const EthForPool = await pool.getAmountOut(tokenAddress, TokenForPool, this.signer.address);
+        console.log(`I need ${ethers.utils.formatEther(EthForPool)} ETH for the pool `);
+        if (TokenBalance.lt(TokenForPool)){
+            const TokenDiffer=TokenForPool.sub(TokenBalance)
+            let EthForDiffer = await pool.getAmountOut(tokenAddress, TokenDiffer, this.signer.address);
+            console.log(`I need offer ${ethers.utils.formatEther(EthForDiffer)} ETH to swap extra  ${ethers.utils.formatUnits(TokenDiffer,tokenDecimal)} token for adding liquidity `);
+            EthForDiffer=EthForDiffer.mul(101).div(100); //换币要交手续费
+            await this.swapEthForTokenOnSyncSwap(tokenAddress,ethers.utils.formatEther(EthForDiffer));
+            TokenBalance =await checkERC20Balances(this.signer,tokenAddress);
+            if (TokenBalance.lt(TokenForPool)) {
+                throw Error('Token is insufficent for the pool,please check the token balance ');
+            }
+        }
+
+        const allowance = await TokenContract.allowance(this.signer.address, SYNCSWAP_ROUTER_ADDRESS);
+        console.log(`Allowance: ${ethers.utils.formatEther(allowance)}`);
+
+        if (allowance.eq(0)) {
+            console.log("Not authorized, approving...");
+            const approveTx = await TokenContract.connect(this.signer).approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
+            await approveTx.wait();
+            console.log(`Transaction approved: ${approveTx.hash}`);
+        }
+        const minLiquidity =  0;
+        const inputs = [[tokenAddress,TokenForPool.toString()],[ZERO_ADDRESS,EthForPool.toString()]];
+        const callback = '0x0000000000000000000000000000000000000000';
+        const signerAddress = "0x" + "0".repeat(24) + this.signer.address.slice(2);
+        const data = Buffer.from(signerAddress.slice(2), "hex");
+        const callbackData =  Buffer.from([]);
+        const value = 0
+        const from = this.signer.address
+        const gasPrice = await zk_provider.getGasPrice()
+        console.log("zk_provider gasPrice is ", gasPrice.toString())
+        const nonce = await this.signer.getTransactionCount();
+        const gasLimit = await router.estimateGas.addLiquidity2(poolAddress, inputs, data, minLiquidity,callback,callbackData);
+        console.log("gas limit is :",gasLimit.toString());
+        let overrides = {
+            from,
+            gasPrice,
+            gasLimit,
+            nonce,
+            value,
+        };
+        const gasFee=gasLimit.mul(gasPrice);
+        const esBalance = EthBalance.sub(gasFee).sub(EthForPool)
+        console.log(esBalance)
+        if (esBalance.lte(0)) {
+            throw Error(`Eth is insufficent for the pool,please check the eth balance of ${this.signer.address}  `);
+        }
+        const addLiquidityTx = await router.addLiquidity2(
+            poolAddress, inputs, data, minLiquidity,callback,callbackData,overrides
+        );
+        console.log("wait for the addLiquidity transaction")
+        await addLiquidityTx.wait();
+        console.log(`Transaction added liquidity: ${addLiquidityTx.hash}`);
+        return addLiquidityTx.hash
+
+    }
+
+    async mintRandomOnMintSquare() {
+        // Read the file with the list of IPFS links
+        const cidList = fs.readFileSync("azuki-cid.txt", "utf8").split("\n");
+        // Select a random IPFS link from the list
+        const randomIndex = Math.floor(Math.random() * cidList.length);
+        const randomCid = cidList[randomIndex].trim();
+        // Construct the URI for the mint function
+        const uri = `ipfs://${randomCid}`;
+        // Get the contract instance
+        const contract = new ethers.Contract(MintSquareContract, mintsquareAbi, this.signer);
+        // Estimate the gas for the transaction
+        const estimatedGas = await contract.estimateGas.mint(uri);
+        const currentGasPrice  = await this.zk_provider.getGasPrice();
+        const gasFee =estimatedGas.mul(currentGasPrice)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee);
+        console.log("estimate balance is",esBalance.toString())
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance');
+            return;
+        }
+        console.log(`Estimated gas: ${estimatedGas.toString()}`);
+        // Call the mint function and wait for confirmation
+        const mintTx = await contract.mint(uri);
+        await mintTx.wait();
+        console.log("Minted NFT with URI:", uri);
+        console.log(mintTx.hash)
+        return mintTx.hash
+
+    }
+
+    async swapEthForTokenOnSpaceFi(tokenAddress, ethAmount){
+        const SpaceFiAddress = ethers.utils.getAddress(SpaceFi_Router_Contract);
+        const router = new Contract(SpaceFiAddress,SpaceFiABI,this.signer)
+        const WETH = await router.WETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        const path =[WETH_ADDRESS, tokenAddress];
+        const stable = [false,false]
+        const value = ethers.utils.parseEther(ethAmount.toString());
+        const tokenContract = new Contract(tokenAddress,erc20Abi,this.signer)
+        const SwapAmount = await router.getAmountOut(value, WETH_ADDRESS, tokenAddress);
+        //const SwapAmountS = await router.getAmountsOut(value,  pair);
+        const tokenDecimal = await tokenContract.decimals();
+        console.log(`${ethAmount}eth 可以兑换的数量是:${ethers.utils.formatUnits(SwapAmount.toString(),tokenDecimal)}`);
+        const nonce =await this.signer.getTransactionCount()
+        const gasPrice =await zk_provider.getGasPrice()
+        const deadline = (await zk_provider.getBlock('latest')).timestamp + 600;
+        const gasLimit = await router.estimateGas.swapExactETHForTokensSupportingFeeOnTransferTokens(
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            { gasPrice, nonce, value }
+        );
+        const gasFee =gasPrice.mul(gasLimit)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee).sub(value);
+        console.log("estimate balance is",ethers.utils.formatEther(esBalance.toString()))
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance of ',this.signer.address);
+            throw Error('Eth is insufficent ,please check the  balance ');
+        }
+        const response = await router.swapExactETHForTokensSupportingFeeOnTransferTokens(
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            { gasPrice, nonce, value ,gasLimit }
+        );
+        await  response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        return response.hash
+    }
+
+    async swapExactTokenForEthOnSpaceFi(tokenAddress, tokenAmount){
+        const SpaceFiAddress = ethers.utils.getAddress(SpaceFi_Router_Contract);
+        const router = new Contract(SpaceFiAddress,SpaceFiABI,this.signer)
+        const WETH = await router.WETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        const pair =[tokenAddress,WETH_ADDRESS];
+        const tokenContract = new Contract(tokenAddress,erc20Abi,this.signer)
+        const tokenDecimal = await tokenContract.decimals();
+        const amountIn = ethers.utils.parseUnits(tokenAmount.toString(),tokenDecimal);
+        const SwapAmount = await router.getAmountOut(amountIn, tokenAddress, WETH_ADDRESS);
+        // const SwapAmountS = await router.getAmountsOut(amountIn,  pair);
+        // console.log("SwapAmount",SwapAmount)  这里目前显示的不准确
+        // console.log("SwapAmountS",SwapAmountS)
+        console.log(`${tokenAmount}Token 可以兑换的ETH的数量是:${ethers.utils.formatEther(SwapAmount)} 这里目前显示的不准确`);
+        const allowance = await tokenContract.allowance(this.signer.address, SpaceFi_Router_Contract);
+        console.log(`Allowance: ${ethers.utils.formatEther(allowance)}`);
+        if (allowance.eq(0)) {
+            console.log("Not authorized, approving...");
+            const approveTx = await tokenContract.connect(this.signer).approve(SpaceFi_Router_Contract, ethers.constants.MaxUint256);
+            await approveTx.wait();
+            console.log(`Transaction approved: ${approveTx.hash}`);
+        }
+        const nonce =await this.signer.getTransactionCount()
+        const gasPrice =await zk_provider.getGasPrice()
+        const deadline = (await zk_provider.getBlock('latest')).timestamp + 600;
+        const gasLimit = await router.estimateGas.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            0,
+            pair,
+            this.signer.address,
+            deadline,
+            { gasPrice, nonce }
+        );
+        console.log(gasLimit)
+        const gasFee =gasPrice.mul(gasLimit)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee);
+        console.log("estimate balance is",ethers.utils.formatEther(esBalance.toString()))
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance of ',this.signer.address);
+            throw Error('Eth is insufficent ,please check the  balance ');
+        }
+        const response = await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            0,
+            pair,
+            this.signer.address,
+            deadline,
+            { gasPrice, nonce ,gasLimit }
+        );
+        await  response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        return response.hash
+    }
+
+    async swapEthForTokenOnMute(tokenAddress, ethAmount){
+        const router = new Contract(Mute_Router_Contract,MuteRouterABI,this.signer)
+        const WETH = await router.WETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        const path =[WETH_ADDRESS, tokenAddress];
+        const value = ethers.utils.parseEther(ethAmount.toString());
+        console.log(value.toString())
+        const tokenContract = new Contract(tokenAddress,erc20Abi,this.signer)
+        //const SwapAmount = await router.getAmountsOutExpanded(value,path);
+        const tokenDecimal = await tokenContract.decimals();
+        //console.log(`${ethAmount}eth 可以兑换的数量是:${ethers.utils.formatUnits(SwapAmount.amountOut.toString(),tokenDecimal)}`);
+        const nonce =await this.signer.getTransactionCount()
+        const gasPrice =await zk_provider.getGasPrice()
+        const deadline = (await zk_provider.getBlock('latest')).timestamp + 600;
+        const stable = [false,false]
+        const gasLimit = await router.estimateGas.swapExactETHForTokensSupportingFeeOnTransferTokens(
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            stable,
+            { gasPrice, nonce, value }
+        );
+        const gasFee =gasPrice.mul(gasLimit)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee).sub(value);
+        console.log("estimate balance is",ethers.utils.formatEther(esBalance.toString()))
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance of ',this.signer.address);
+            throw Error('Eth is insufficent ,please check the  balance ');
+        }
+        const response = await router.swapExactETHForTokensSupportingFeeOnTransferTokens(
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            stable,
+            { gasPrice, nonce, value ,gasLimit }
+        );
+        await  response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        console.log(response)
+        return response.hash
+
+    }
+
+    async swapExactTokenForEthOnMute(tokenAddress, tokenAmount){
+        const MuteRouterAddress = ethers.utils.getAddress(Mute_Router_Contract);
+        const router = new Contract(MuteRouterAddress,MuteRouterABI,this.signer)
+        const WETH = await router.WETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        const path =[tokenAddress,WETH_ADDRESS];
+        const tokenContract = new Contract(tokenAddress,erc20Abi,this.signer)
+        const tokenDecimal = await tokenContract.decimals();
+        const amountIn = ethers.utils.parseUnits(tokenAmount.toString(),tokenDecimal);
+        //const SwapAmount = await router.getAmountOut(amountIn, tokenAddress, WETH_ADDRESS);
+        // const SwapAmountS = await router.getAmountsOut(amountIn,  path);
+        // console.log("SwapAmount",SwapAmount)  这里目前显示的不准确
+        // console.log("SwapAmountS",SwapAmountS)
+        //console.log(`${tokenAmount}Token 可以兑换的ETH的数量是:${ethers.utils.formatEther(SwapAmount)} 这里目前显示的不准确`);
+        const allowance = await tokenContract.allowance(this.signer.address, MuteRouterAddress);
+        console.log(`Allowance: ${ethers.utils.formatEther(allowance)}`);
+        if (allowance.eq(0)) {
+            console.log("Not authorized, approving...");
+            const approveTx = await tokenContract.connect(this.signer).approve(MuteRouterAddress, ethers.constants.MaxUint256);
+            await approveTx.wait();
+            console.log(`Transaction approved: ${approveTx.hash}`);
+        }
+        const nonce =await this.signer.getTransactionCount()
+        const gasPrice =await zk_provider.getGasPrice()
+        const deadline = (await zk_provider.getBlock('latest')).timestamp + 600;
+        const stable = [false,false]
+        const gasLimit = await router.estimateGas.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            stable,
+            { gasPrice, nonce }
+        );
+        const gasFee =gasPrice.mul(gasLimit)
+        const balance = await this.signer.getBalance()
+        const esBalance = balance.sub(gasFee);
+        console.log("estimate balance is",ethers.utils.formatEther(esBalance.toString()))
+        if (esBalance.lte(0)) {
+            console.log('Insufficient balance of ',this.signer.address);
+            throw Error('Eth is insufficent ,please check the  balance ');
+        }
+        const response = await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            0,
+            path,
+            this.signer.address,
+            deadline,
+            stable,
+            { gasPrice, nonce ,gasLimit }
+        );
+        await  response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        return response.hash
+    }
+
+    async estimateAmountInforEthOnSyncSwap(tokenAddress, tokenAmount) {
+        const classicPoolFactory = new Contract(
+            SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
+            classicPoolFactoryAbi,
+            this.signer
+        );
+        const router = new Contract(SYNCSWAP_ROUTER_ADDRESS, SyncswapRouterAbi, this.signer);
+        const WETH = await router.wETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+        const poolAddress = await classicPoolFactory.getPool(WETH_ADDRESS, tokenAddress);
+        console.log("PoolAddress is :", poolAddress)
+        // Checks whether the pool exists.
+        if (poolAddress === ZERO_ADDRESS) {
+            throw Error('Pool not exists');  
+        }
+        const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
+        const tokenContract = new Contract(tokenAddress, erc20Abi, this.signer)
+        const tokenDecimal = await tokenContract.decimals();
+        const value = ethers.utils.parseUnits(tokenAmount.toString(), tokenDecimal);
+        let SwapAmount = await pool.getAmountOut(tokenAddress, value, this.signer.address);
+        const amountEthOut = ethers.utils.formatEther(SwapAmount.toString())
+        console.log(`${tokenAmount} 换的ETH数量是:${ethers.utils.formatEther(SwapAmount.toString())}`);     
+        return amountEthOut;
+    }
+    
+}
+
+(async () => {
+    console.log("Now is ",VERSION," verison")
+    console.log("Now is ",VERSION," verison")
+    console.log("Now is ",VERSION," verison")
+    const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    //await myZksync.deposit_All_funds_L1_to_L2();
+    //await myZksync.Swap_Usdc_On_Syncswap(1);
+    //await myZksync.Swap_Usdc_On_Mute(1);
+    //await myZksync.Swap_Usdc_On_Spacefi(1);
+    //await myZksync.Swap_Usdc_to_300_On_Syncswap(4);
+    //await myZksync.swapExactTokenForEthOnSpaceFi(USDC_ADDRESS, 2)
+
+    await myZksync.Add_Liquidity_On_Syncswap();
+    //await myZksync.depositEthFromL1toL2(0.1);
+    //await myZksync.depositAllEthFromL1toL2()
+    //await myZksync.withdrawEthFromL2toL1(0.05)
+
+    //await myZksync.transferEthOnL2("0xB3E4F411309C20E6c3a048705803D415F905B72A",0.01)
+    //await myZksync.swapEthForTokenOnSyncSwap(DAI_ADDRESS, 0.001);  //dai
+    await myZksync.mintRandomOnMintSquare()
+    //await myZksync.addLiquidityEthAndUsdcOnSyncSwap('0x9d29342309534095ac442fe5d255b3252aa770b5', 0.1);//
+    //await myZksync.swapEthForTokenOnMute(DAI_ADDRESS, 0.00001);  //dai
+
+    // for (let i=0;i<=10;i++){
+    //     await myZksync.addLiquidityEthAndUsdcOnSyncSwap('0x0bfce1d53451b4a8175dd94e6e029f7d8a701e9c', '1754830997882259');
+    // }
+    //await myZksync.swapEthForTokenOnSpaceFi("0x880F03cA84e6Cf0D0871c9818A2981DEBabA22b3",0.0001)
+    //await myZksync.swapExactTokenForEthOnMute(DAI_ADDRESS, 780.151896115465127961)
+
+})();
+module.exports = { ZKSYNC, eth_provider, zk_provider };
