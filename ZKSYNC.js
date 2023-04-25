@@ -1,5 +1,5 @@
 'use strict';
-const { ethers, Contract,BigNumber  } = require("ethers");
+const { ethers, Contract, BigNumber } = require("ethers");
 const { defaultAbiCoder } = ethers.utils;
 const zksync  = require("zksync-web3");
 const fs = require("fs");
@@ -7,6 +7,12 @@ const Buffer = require('buffer').Buffer;
 //const config = JSON.parse(fs.readFileSync("configTestnet.json", "utf-8"));
 const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 const util = require('util');
+var Web3 = require('web3');
+const { add } = require("../../../../../node_modules/cheerio/lib/api/traversing");
+const { timeStamp } = require("console");
+function sleep(seconds) {
+    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+}
 
 const {
     VERSION,
@@ -41,7 +47,7 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
 const zk_provider = new zksync.Provider(ZK_RPC_URL);
-
+var web3 = new Web3(ZK_RPC_URL);
 
 
 
@@ -66,6 +72,8 @@ async function checkERC20Balances(signer,tokenAddress) {
 
 
 
+
+
 class ZKSYNC {
     constructor(Num, address, privateKey) {
         this.zk_provider = zk_provider;
@@ -76,160 +84,246 @@ class ZKSYNC {
         this.privateKey = privateKey;
         this.signer = new zksync.Wallet(privateKey, zk_provider,eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
-        this.tasks = [
-            "deposit_All_funds_L1_to_L2",
-            "Swap_Usdc_On_Syncswap",
-            "Swap_Usdc_On_Mute",
-            "Swap_Usdc_On_Spacefi",
-            "Mint_NFT_On_Mintsquare",
-            "Swap_Usdc_to_300_On_Syncswap",
-            "Add_Liquidity_On_Syncswap"
-        ];
-        this.completedTasks = new Array(this.tasks.length).fill(false);;
+        //this.tasks = [
+        //    "deposit_All_funds_L1_to_L2",
+        //    "Swap_Usdc_On_Syncswap",
+        //    "Swap_Usdc_On_Mute",
+        //    "Swap_Usdc_On_Spacefi",
+        //    "Mint_NFT_On_Mintsquare",
+        //    "Swap_Usdc_to_Target_On_Syncswap",
+        //    "Add_Liquidity_On_Syncswap"
+        //];
+        this.tasks = ["Revoke_Usdc_On_Syncswap",];
+        this.completedTasks = new Array(this.tasks.length).fill(false);
+        console.log(`[${this.Num}][${this.name}] ZKSYNC wallet created`);
     }
 
     async deposit_All_funds_L1_to_L2() {
         console.log(`[${this.Num}][${this.name}] deposit_All_funds_L1_to_L2 is running...`);
+        let Hash
         try {
-            const Hash = await this.depositAllEthFromL1toL2();
+            const min = 0.195;
+            const max = 0.205;
+            const randomNum = Math.random() * (max - min) + min;
+
+            Hash = await this.depositEthFromL1toL2(randomNum);
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error depositing all ETH from L1 to L2: ${error}`);
+            this.failTask(1, error)
             return;
         }
-        await this.completeTask(1);
+        await this.completeTask(1, Hash);
 
     }
 
     async Swap_Usdc_On_Syncswap(usdcAmount = null) {
         console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Syncswap is running...`);
-
+        let Hash
         try {
-            //const randomMoney = BigNumber.from(5000)
             const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
             console.log(randomMoney)
             const estimateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
             console.log("estimateETH is ", estimateETH);
-            const Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, estimateETH)
+            Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, estimateETH)
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Syncswap: ${error}`);
+            this.failTask(2, error)
             return;
         }
 
-        await this.completeTask(2);
+        await this.completeTask(2, Hash);
     }
     async Swap_Usdc_On_Mute(usdcAmount = null) {
         console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Mute is running...`);
+        let Hash
+
         try {
-            //const randomMoney = BigNumber.from(5000000)
-            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
+            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 6 + 5)
             console.log(randomMoney)
             const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
-            const Hash = await this.swapEthForTokenOnMute(USDC_ADDRESS, esitmateETH)
+            Hash = await this.swapEthForTokenOnMute(USDC_ADDRESS, esitmateETH)
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Mute: ${error}`);
+            this.failTask(3, error)
             return;
         }
-        await this.completeTask(3);
+        await this.completeTask(3, Hash);
     }
     async Swap_Usdc_On_Spacefi(usdcAmount = null) {
         console.log(`[${this.Num}][${this.name}] Swap_Usdc_On_Spacefi is running...`);
+        let Hash
+
         try {
-            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 40 + 50)
+            const randomMoney = usdcAmount ? usdcAmount : Math.floor(Math.random() * 6 + 5)
             console.log(randomMoney)
             const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
-            const Hash = await this.swapEthForTokenOnSpaceFi(USDC_ADDRESS, esitmateETH)
+             Hash = await this.swapEthForTokenOnSpaceFi(USDC_ADDRESS, esitmateETH)
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Spacefi: ${error}`);
+            this.failTask(4, error)
             return;
         }
-        await this.completeTask(4);
+        await this.completeTask(4, Hash);
     }
     async Mint_NFT_On_Mintsquare() {
         console.log(`[${this.Num}][${this.name}] Mint_NFT_On_Mintsquare is running...`);
+        let Hash
 
         try {
-            const Hash = await this.mintRandomOnMintSquare();
+             Hash = await this.mintRandomOnMintSquare();
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Mint_NFT_On_Mintsquare: ${error}`);
+            this.failTask(5, error)
             return;
         }
 
-        await this.completeTask(5);
+        await this.completeTask(5, Hash);
 
 
     }
-    async Swap_Usdc_to_300_On_Syncswap(TokenAmount = null) {
-        console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_300_On_Syncswap is running...`);
+    async Swap_Usdc_to_Target_On_Syncswap(TokenAmount = null) {
+        console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_Target_On_Syncswap is running...`);
+        let Hash
+
         try {
             const TokenContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
             const tokenDecimal = await TokenContract.decimals();
             const TokenBalanceInWei = await checkERC20Balances(this.signer, USDC_ADDRESS);
             const TokenBalance = ethers.utils.formatUnits(TokenBalanceInWei, tokenDecimal)
-            const TargetTokenAmount = TokenAmount ? TokenAmount : Math.floor(Math.random() * 5 + 298)
+            const TargetTokenAmount = TokenAmount ? TokenAmount : Math.floor(Math.random() * 5 + 147)
             let TokenDiff = TargetTokenAmount - TokenBalance
             const TokenDiffFixed = TokenDiff.toFixed(2);
             const TokenDiffNumber = parseFloat(TokenDiffFixed);
-            if (TokenDiffNumber <=0) {
+            if (TokenDiffNumber <= 0) {
+                await this.completeTask(6, Hash);
                 return;
             }
             console.log(TokenDiff.toString())
             const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, TokenDiffNumber)
-            const Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, esitmateETH)
+             Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, esitmateETH)
             console.log(Hash)
         } catch (error) {
-            console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_300_On_Syncswap: ${error}`);
+            console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_Target_On_Syncswap: ${error}`);
+            this.failTask(6, error)
             return;
         }
-        await this.completeTask(6);
+        await this.completeTask(6, Hash);
 
 
     }
     async Add_Liquidity_On_Syncswap() {
         console.log(`[${this.Num}][${this.name}] Add_Liquidity_On_Syncswap is running...`);
+        let Hash
+
         try {
             const TokenContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
             const tokenDecimal = await TokenContract.decimals();
             let TokenBalance = await checkERC20Balances(this.signer, USDC_ADDRESS);
             const tokenAmount = ethers.utils.formatUnits(TokenBalance, tokenDecimal)
-            const Hash = await this.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, tokenAmount)
+            Hash = await this.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, tokenAmount)
             console.log(Hash)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Add_Liquidity_On_Syncswap: ${error}`);
+            this.failTask(7, error)
             return;
         }
-        await this.completeTask(7);
+        await this.completeTask(7, Hash);
 
 
     }
 
+    
+    async Burn_Liquidity_USDC_On_Syncswap() {
+        console.log(`[${this.Num}][${this.name}] Burn_Liquidity_USDC_On_Syncswap is running...`);
+        let Hash
+
+        try {
+            const TokenContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
+            const tokenDecimal = await TokenContract.decimals();
+            let ethBalance = await checkETHBalances(this.signer)
+            Hash = await this.burnLiquiditySingleEthAndUsdcOnSyncSwap(USDC_ADDRESS)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+            ethBalance = await checkETHBalances(this.signer)
+
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Burn_Liquidity_USDC_On_Syncswap: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
+
+
+    }
+
+    async Revoke_Usdc_On_Syncswap() {
+        console.log(`[${this.Num}][${this.name}] Revoke_Usdc_On_Syncswap is running...`);
+        let Hash
+        try {
+            Hash = await this.revokeUsdcApproval(SYNCSWAP_ROUTER_ADDRESS)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Revoke_Usdc_On_Syncswap: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
+    }
+
     getNextTask() {
-        const remainingTasks = this.getRemainingTasks();
-        if (remainingTasks.length === 7) {
-            return 'deposit_All_funds_L1_to_L2';
-        }
-        if (remainingTasks.length === 2) {
-            return 'Swap_Usdc_to_300_On_Syncswap';
-        }
-        if (remainingTasks.length === 1) {
-            return 'Add_Liquidity_On_Syncswap';
-        }
-        const remainingRandomTasks = remainingTasks.filter(
-            task => !['deposit_All_funds_L1_to_L2', 'Swap_Usdc_to_300_On_Syncswap', 'Add_Liquidity_On_Syncswap'].includes(task)
-        );
+        const remainingRandomTasks = this.getRemainingTasks();
+        //if (remainingTasks.length === 7) {
+        //    return 'deposit_All_funds_L1_to_L2';
+        //}
+        //if (remainingTasks.length === 2) {
+        //    return 'Swap_Usdc_to_Target_On_Syncswap';
+        //}
+        //if (remainingTasks.length === 1) {
+        //    return 'Burn_Liquidity_USDC_On_Syncswap';//Add_Liquidity_On_Syncswap
+        //}
+        //const remainingRandomTasks = remainingTasks.filter(
+        //    task => !['deposit_All_funds_L1_to_L2', 'Swap_Usdc_to_Target_On_Syncswap', 'Add_Liquidity_On_Syncswap'].includes(task)
+        //);
         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
         return remainingRandomTasks[randomIndex];
     }
 
-    async completeTask(taskNumber) {
+    async completeTask(taskNumber, transaction_hash) {
         const taskName = this.tasks[taskNumber - 1];
+        console.log(`${taskName} is completed`);
+        const offset = 8; // 东八区
+        const currentTime = new Date();
+        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
+        if (transaction_hash == null) {
+            await sleep(120);
+            console.log(`[${this.name}] transaction may succeed ，sleep two minuts for the final results`)
+            const balance = await checkETHBalances(this.signer)
+            if(taskNumber === 1 &&  balance.gt(0) ){
+                console.log(`[${this.name}] transaction may succeed ，but there is no transaction_hash: ${taskName}`)
+                            }
+            else {
+                console.log(`[${this.name}] transaction failed: ${taskName}`);
+                fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: transaction failed   @[${currentTimestampInUTC8}]\n`)
+                return;
+            }
+             }
+
         console.log(`[${this.name}] Completing task: ${taskName}`);
+        fs.appendFileSync("./Log/task.log", `[${this.Num}] Address:[${this.name}]: Completing No [${taskNumber}] task: [${taskName}] @[${currentTimestampInUTC8}] The transaction is  https://explorer.zksync.io/tx/${transaction_hash} \n`)
         this.completedTasks[taskNumber - 1] = true;
         await this.saveState();
+    }
+
+    failTask(taskNumber,error) {
+        const taskName = this.tasks[taskNumber - 1];
+        const offset = 8; // 东八区
+        const currentTime = new Date();
+        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
+        fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: not complete No [${taskNumber}] task [${taskName}]  error:${error} @[${currentTimestampInUTC8}]\n`)
     }
 
     isCompleted() {
@@ -250,12 +344,13 @@ class ZKSYNC {
                 data = fs.readFileSync(path);
             } else {
                 console.log(`[${this.name}] Initializing project state...`);
-                const initialData = { completedTasks };
-                fs.writeFileSync(path, JSON.stringify(initialData));
-                data = JSON.stringify(initialData);
+                const initialData = JSON.stringify({ completedTasks: this.completedTasks });
+                fs.writeFileSync(path, initialData);
+                data = initialData;
             }
             const { completedTasks } = JSON.parse(data);
             this.completedTasks = completedTasks;
+
         }
         catch (e) {
             console.log(`[${this.name}] Initializing project state error...`);
@@ -282,8 +377,11 @@ class ZKSYNC {
                 console.log('ethAmount should bigger than 0');
                 return;
             }
-            console.log(`I will tranfer money ${ethers.utils.formatEther(amount)} eth from L1 to L2`)
-            const gasPrice = await this.eth_provider.getGasPrice();
+            console.log(`I will deposit money ${ethers.utils.formatEther(amount)} eth from L1 to L2`)
+            const currentGasPrice  = await this.eth_provider.getGasPrice();
+            console.log("currentGasPrice is:",ethers.utils.formatUnits(currentGasPrice,'gwei'),'gwei')
+            const incrementGwei = Math.floor(Math.random() * 3)+3;  //随机增加Eth的主网gasPrice，0-4
+            const gasPrice = currentGasPrice.add(ethers.utils.parseUnits(incrementGwei.toString(), 'gwei'));
             const ZKgasPrice = await this.zk_provider.getGasPrice();
             console.log("gasPrice is:", ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei')
             console.log("ZKgasPrice is:", ethers.utils.formatUnits(ZKgasPrice, 'gwei'), 'gwei')
@@ -298,7 +396,10 @@ class ZKSYNC {
                 amount: amount,
                             }
             // 估算gas费用
-            const gasLimit = await this.signer.estimateGasDeposit(etx)
+            let gasLimit = await this.signer.estimateGasDeposit(etx)
+            if (gasLimit <150024){
+                gasLimit=150024
+            }
             console.log("gasLimit is",gasLimit.toString())
             // 计算gas费用
             const gasFee = gasPrice.mul(gasLimit).mul(2);
@@ -316,6 +417,8 @@ class ZKSYNC {
                 token: zksync.utils.ETH_ADDRESS,
                 amount: amount,
                 gasLimit:gasLimit,
+                gasPrice:gasPrice,
+
             }
             const deposit = await this.signer.deposit(tx);
             // Await processing of the deposit on L1
@@ -328,10 +431,12 @@ class ZKSYNC {
             console.log("The balance of ETH on L1 is :",ethers.utils.formatEther(L1balanceAfterDeposit))
             const L2balanceAfterDeposit = await this.signer.getBalance()
             console.log("The balance of ETH on L2 is :", ethers.utils.formatEther(L2balanceAfterDeposit))
-            console.log(deposit.hash)
+            console.log(deposit.status)
             return deposit.hash
         } catch (error) {
+            console.log('depositEthFromL1toL2 error status:',error.status)
             console.error(error);
+            
         }
     }
 
@@ -365,7 +470,11 @@ class ZKSYNC {
                 gasLimit: 125115,
             }
             // 估算gas费用
-            const gasLimit = await this.signer.estimateGasDeposit(etx)
+
+            let gasLimit = await this.signer.estimateGasDeposit(etx)
+            if (gasLimit <152024){
+                gasLimit=152024
+            }
             console.log("gasLimit is",gasLimit.toString())
             const gasFee = gasPrice.mul(gasLimit);
             console.log("gasFee is", ethers.utils.formatEther(gasFee))
@@ -403,7 +512,6 @@ class ZKSYNC {
 
     async transferEthOnL2(address, amountInEther ) {
     try {
-        console.log(util.debuglog('myFunction')('Called'));
 
         // Convert amount to wei
         const amount = ethers.utils.parseEther(amountInEther.toString());
@@ -421,7 +529,7 @@ class ZKSYNC {
             return;
         }
         const transfer = await this.signer.transfer(tx);
-        const committedTxReceipt = await transfer.wait();
+        //const committedTxReceipt = await transfer.wait();
         console.log(transfer.hash);
         // const finalizedTxReceipt = await transfer.waitFinalize();
         // console.log(finalizedTxReceipt);
@@ -587,7 +695,9 @@ class ZKSYNC {
         return response.hash
     }
 
-    async addLiquidityEthAndUsdcOnSyncSwap(tokenAddress,tokenAmount) {
+    
+
+    async addLiquidityEthAndUsdcOnSyncSwap(tokenAddress, tokenAmount) {
 
         const classicPoolFactory = new Contract(
             SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
@@ -600,7 +710,7 @@ class ZKSYNC {
         // Gets the address of the ETH/DAI Classic Pool.
         // wETH is used internally by the pools.
         const poolAddress = await classicPoolFactory.getPool(WETH_ADDRESS, tokenAddress);
-        console.log("PoolAddress is :" ,poolAddress)
+        console.log("PoolAddress is :", poolAddress)
         // Checks whether the pool exists.
         if (poolAddress === ZERO_ADDRESS) {
             throw Error('Pool not exists');
@@ -609,29 +719,35 @@ class ZKSYNC {
         // Gets the reserves of the pool.
         const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
         const reserves = await pool.getReserves(); // Returns tuple (uint, uint)
+        const protocolFee = await pool.getProtocolFee()
+        console.log("protocolFee:", protocolFee)
+        const swapFee = await pool.getSwapFee(this.signer.address, ZERO_ADDRESS, USDC_ADDRESS, Buffer.from([]))
+        console.log("swapfee ", swapFee)
         const TokenContract = new ethers.Contract(tokenAddress, erc20Abi, this.signer);
         const tokenDecimal = await TokenContract.decimals();
-        let TokenBalance = await checkERC20Balances(this.signer,tokenAddress);
+        let TokenBalance = await checkERC20Balances(this.signer, tokenAddress);
         const EthBalance = await this.signer.getBalance()
         // Sorts the reserves by token addresses.
         const [reserveETH, reserveToken] = WETH_ADDRESS < tokenAddress ? reserves : [reserves[1], reserves[0]];
-        console.log("reserveETH on pool",ethers.utils.formatEther(reserveETH));
-        console.log("reserveToken on pool",ethers.utils.formatUnits(reserveToken,tokenDecimal.toString()));
+        console.log("reserveETH on pool", ethers.utils.formatEther(reserveETH));
+        console.log("reserveToken on pool", ethers.utils.formatUnits(reserveToken, tokenDecimal.toString()));
         const lp = await pool.balanceOf(this.signer.address)
-        console.log("我的地址所占比例",ethers.utils.formatEther(lp.toString()))
+        console.log("我的地址所占比例", ethers.utils.formatEther(lp.toString()))
         //const TokenForPool   =  ethers.utils.parseUnits(BigNumber.from(tokenAmount.toString()).toString(), tokenDecimal);  //测试网的大数专用
-        const TokenForPool   =  ethers.utils.parseUnits(tokenAmount.toString(), tokenDecimal);
-        console.log(`Token balance: ${ethers.utils.formatUnits(TokenBalance.toString(),tokenDecimal)}`);
+        const TokenForPool = ethers.utils.parseUnits(tokenAmount.toString(), tokenDecimal);
+        console.log(`Token balance: ${ethers.utils.formatUnits(TokenBalance.toString(), tokenDecimal)}`);
         console.log(`I will offer ${tokenAmount} token  for add liquidity `);
-        const EthForPool = await pool.getAmountOut(tokenAddress, TokenForPool, this.signer.address);
+        const EthForPool = TokenForPool.mul(reserveETH).div(reserveToken)
+        console.log(EthForPool.toString())
+        //console.log("ETHgetAmountOut",ETHgetAmountOut.toString())
         console.log(`I need ${ethers.utils.formatEther(EthForPool)} ETH for the pool `);
-        if (TokenBalance.lt(TokenForPool)){
-            const TokenDiffer=TokenForPool.sub(TokenBalance)
+        if (TokenBalance.lt(TokenForPool)) {
+            const TokenDiffer = TokenForPool.sub(TokenBalance)
             let EthForDiffer = await pool.getAmountOut(tokenAddress, TokenDiffer, this.signer.address);
-            console.log(`I need offer ${ethers.utils.formatEther(EthForDiffer)} ETH to swap extra  ${ethers.utils.formatUnits(TokenDiffer,tokenDecimal)} token for adding liquidity `);
-            EthForDiffer=EthForDiffer.mul(101).div(100); //换币要交手续费
-            await this.swapEthForTokenOnSyncSwap(tokenAddress,ethers.utils.formatEther(EthForDiffer));
-            TokenBalance =await checkERC20Balances(this.signer,tokenAddress);
+            console.log(`I need offer ${ethers.utils.formatEther(EthForDiffer)} ETH to swap extra  ${ethers.utils.formatUnits(TokenDiffer, tokenDecimal)} token for adding liquidity `);
+            EthForDiffer = EthForDiffer.mul(101).div(100); //换币要交手续费
+            await this.swapEthForTokenOnSyncSwap(tokenAddress, ethers.utils.formatEther(EthForDiffer));
+            TokenBalance = await checkERC20Balances(this.signer, tokenAddress);
             if (TokenBalance.lt(TokenForPool)) {
                 throw Error('Token is insufficent for the pool,please check the token balance ');
             }
@@ -646,34 +762,42 @@ class ZKSYNC {
             await approveTx.wait();
             console.log(`Transaction approved: ${approveTx.hash}`);
         }
-        const minLiquidity =  0;
-        const inputs = [[tokenAddress,TokenForPool.toString()],[ZERO_ADDRESS,EthForPool.toString()]];
+
+
+        console.log(EthForPool.toString())
+        const inputs = [[tokenAddress, TokenForPool.toString()], [ZERO_ADDRESS, 0]];
         const callback = '0x0000000000000000000000000000000000000000';
-        const signerAddress = "0x" + "0".repeat(24) + this.signer.address.slice(2);
-        const data = Buffer.from(signerAddress.slice(2), "hex");
-        const callbackData =  Buffer.from([]);
+        const swapData = defaultAbiCoder.encode(
+            ["address"],
+            [this.signer.address]
+        );
+        //const signerAddress = "0x" + "0".repeat(24) + this.signer.address.slice(2);
+        //const data = Buffer.from(signerAddress.slice(2), "hex");
+        const data = swapData
+        const callbackData = Buffer.from([]);
         const value = 0
         const from = this.signer.address
         const gasPrice = await zk_provider.getGasPrice()
         console.log("zk_provider gasPrice is ", gasPrice.toString())
         const nonce = await this.signer.getTransactionCount();
-        const gasLimit = await router.estimateGas.addLiquidity2(poolAddress, inputs, data, minLiquidity,callback,callbackData);
-        console.log("gas limit is :",gasLimit.toString());
+        const minLiquidity = 10;
+        const gasLimit = await router.estimateGas.addLiquidity2(poolAddress, inputs, data, minLiquidity, callback, callbackData);
+        console.log("gas limit is :", gasLimit.toString());
         let overrides = {
             from,
             gasPrice,
-            gasLimit,
             nonce,
             value,
+            gasLimit
         };
-        const gasFee=gasLimit.mul(gasPrice);
+        const gasFee = gasLimit.mul(gasPrice);
         const esBalance = EthBalance.sub(gasFee).sub(EthForPool)
-        console.log(esBalance)
+        console.log(esBalance.toString())
         if (esBalance.lte(0)) {
             throw Error(`Eth is insufficent for the pool,please check the eth balance of ${this.signer.address}  `);
         }
         const addLiquidityTx = await router.addLiquidity2(
-            poolAddress, inputs, data, minLiquidity,callback,callbackData,overrides
+            poolAddress, inputs, data, minLiquidity, callback, callbackData, overrides
         );
         console.log("wait for the addLiquidity transaction")
         await addLiquidityTx.wait();
@@ -681,6 +805,90 @@ class ZKSYNC {
         return addLiquidityTx.hash
 
     }
+
+    async burnLiquiditySingleEthAndUsdcOnSyncSwap(tokenAddress) {
+        console.log("burnLiquidityEthAndUsdcOnSyncSwap")
+        const classicPoolFactory = new Contract(
+            SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS,
+            classicPoolFactoryAbi,
+            this.signer
+        );
+        const router = new Contract(SYNCSWAP_ROUTER_ADDRESS, SyncswapRouterAbi, this.signer);
+        const WETH = await router.wETH()
+        const WETH_ADDRESS = wETH_ADDRESS !== null ? wETH_ADDRESS : WETH
+
+        const poolAddress = await classicPoolFactory.getPool(WETH_ADDRESS, tokenAddress);
+        console.log("PoolAddress is :", poolAddress)
+        // Checks whether the pool exists.
+        if (poolAddress === ZERO_ADDRESS) {
+            throw Error('Pool not exists');
+        }
+
+        // Gets the reserves of the pool.
+        const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
+        const TokenContract = new ethers.Contract(tokenAddress, erc20Abi, this.signer);
+        const balance = await pool.balanceOf(this.signer.address)
+        console.log(balance.toString())
+        //const burnAmount   = balance.mul(50).div(100);
+        const burnAmount = balance
+        const Data = defaultAbiCoder.encode(
+            ["address", "address", "uint8"],
+            [WETH_ADDRESS, this.signer.address, 1]
+        );
+
+        const allowance = await pool.allowance(this.signer.address, SYNCSWAP_ROUTER_ADDRESS)
+        console.log(`Allowance: ${ethers.utils.formatEther(allowance)}`);
+        const value = 0
+        const from = this.signer.address
+        const gasPrice = await zk_provider.getGasPrice()
+        console.log("zk_provider gasPrice is ", gasPrice.toString())
+        const nonce = await this.signer.getTransactionCount();
+        if (allowance.eq(0)) {
+            console.log("Not authorized, approving...");
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 60 * 2; //
+            const approveAmount = ethers.constants.MaxUint256;//
+            const signature = await this.sign_permit(poolAddress, approveAmount, deadline)
+            console.log(Data)
+            const permit = [approveAmount, deadline, signature]
+            const gasLimit = await router.estimateGas.burnLiquiditySingleWithPermit(poolAddress, burnAmount, ethers.utils.arrayify(Data), 0, '0x0000000000000000000000000000000000000000', Buffer.from([]), permit)
+            console.log(gasLimit.toString())
+            let overrides = {
+                from,
+                gasPrice,
+                gasLimit,
+                nonce,
+                value,
+            };
+            console.log("burnLiquidityWithPermit ing...");
+
+            const BurnLiquidityTx = await router.burnLiquiditySingleWithPermit(poolAddress, burnAmount, ethers.utils.arrayify(Data), 0, '0x0000000000000000000000000000000000000000', Buffer.from([]), permit, overrides)
+            await BurnLiquidityTx.wait();
+            console.log(BurnLiquidityTx)
+            console.log(BurnLiquidityTx.hash)
+            return BurnLiquidityTx.hash
+        }
+        else {
+            console.log("burnLiquidityWithoutPermit ing...")
+
+            const gasLimit = await router.estimateGas.burnLiquiditySingle(poolAddress, burnAmount, ethers.utils.arrayify(Data), 0, '0x0000000000000000000000000000000000000000', Buffer.from([]))
+            console.log(gasLimit.toString())
+            let overrides = {
+                from,
+                gasPrice,
+                gasLimit,
+                nonce,
+                value,
+            };
+            const BurnLiquidityTx = await router.burnLiquiditySingle(poolAddress, burnAmount, ethers.utils.arrayify(Data), 0, '0x0000000000000000000000000000000000000000', Buffer.from([]), overrides)
+            const tx = await BurnLiquidityTx.wait();
+            console.log(tx)
+            console.log(BurnLiquidityTx.hash)
+            return BurnLiquidityTx.hash
+        }
+    }
+
+
+
 
     async mintRandomOnMintSquare() {
         // Read the file with the list of IPFS links
@@ -722,10 +930,10 @@ class ZKSYNC {
         const stable = [false,false]
         const value = ethers.utils.parseEther(ethAmount.toString());
         const tokenContract = new Contract(tokenAddress,erc20Abi,this.signer)
-        const SwapAmount = await router.getAmountOut(value, WETH_ADDRESS, tokenAddress);
+        //const SwapAmount = await router.getAmountOut(value, WETH_ADDRESS, tokenAddress);
         //const SwapAmountS = await router.getAmountsOut(value,  pair);
         const tokenDecimal = await tokenContract.decimals();
-        console.log(`${ethAmount}eth 可以兑换的数量是:${ethers.utils.formatUnits(SwapAmount.toString(),tokenDecimal)}`);
+        //console.log(`${ethAmount}eth 可以兑换的数量是:${ethers.utils.formatUnits(SwapAmount.toString(),tokenDecimal)}`);
         const nonce =await this.signer.getTransactionCount()
         const gasPrice =await zk_provider.getGasPrice()
         const deadline = (await zk_provider.getBlock('latest')).timestamp + 600;
@@ -927,7 +1135,7 @@ class ZKSYNC {
         console.log("PoolAddress is :", poolAddress)
         // Checks whether the pool exists.
         if (poolAddress === ZERO_ADDRESS) {
-            throw Error('Pool not exists');  
+            throw Error('Pool not exists');
         }
         const pool = new Contract(poolAddress, SyncswapPoolABI, this.signer);
         const tokenContract = new Contract(tokenAddress, erc20Abi, this.signer)
@@ -935,33 +1143,117 @@ class ZKSYNC {
         const value = ethers.utils.parseUnits(tokenAmount.toString(), tokenDecimal);
         let SwapAmount = await pool.getAmountOut(tokenAddress, value, this.signer.address);
         const amountEthOut = ethers.utils.formatEther(SwapAmount.toString())
-        console.log(`${tokenAmount} 换的ETH数量是:${ethers.utils.formatEther(SwapAmount.toString())}`);     
+        console.log(`${tokenAmount} 换的ETH数量是:${ethers.utils.formatEther(SwapAmount.toString())}`);
         return amountEthOut;
     }
+
+    async sign_permit(poolAddress, approval_Amount, deadLine) {
+        const contract = new Contract(poolAddress, SyncswapPoolABI, this.signer)
+        const deadline = deadLine   // 2 hour  Math.floor(Date.now() / 1000) + 60 * 60 * 2;
+        const approval_amount = approval_Amount
+        //            BigNumber.from("115792089237316195423570985008687907853269984665640564039457584007913129639935")
+        //            ethers.constants.MaxUint256
+        const owner_address = this.signer.address;
+        const nonce = await contract.nonces(owner_address);
+        const DOMAIN_SEPARATOR = await contract.DOMAIN_SEPARATOR();
+        const PERMIT_TYPEHASH = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'));
+
+        const DETAIL_HASH = ethers.utils.keccak256(
+            ethers.utils.defaultAbiCoder.encode(
+                ["bytes32", "address", "address", "uint256", "uint256", "uint256"],
+                [
+                    PERMIT_TYPEHASH,
+                    this.signer.address,
+                    SYNCSWAP_ROUTER_ADDRESS,
+                    approval_amount,
+                    nonce,
+                    deadline
+                ]
+            )
+        );
+
+        const encodeData = ethers.utils.solidityPack(
+            ['bytes', 'bytes', 'bytes'],
+            [
+                ethers.utils.toUtf8Bytes('\x19\x01'),
+                DOMAIN_SEPARATOR,
+                DETAIL_HASH
+            ]
+        );
+        const finalHash = ethers.utils.keccak256(encodeData)
+        console.log(finalHash)
+        const EthereumUtil = require('ethereumjs-util');
+        let privateKey2 = this.privateKey.replace(/^(0x)/, '');
+        const privateKey = Buffer.from(privateKey2, 'hex');
+        const hash = Buffer.from(finalHash.slice(2), 'hex');
+        const sig = EthereumUtil.ecsign(hash, privateKey);
+        const signature = EthereumUtil.toRpcSig(sig.v, sig.r, sig.s);
+        console.log('Signature:', signature);
+        return signature;
+
+    }
+
+    async revokeUsdcApproval(poolAddress) {
+        const usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
     
-}
+        try {
+          // 查询授权数量
+          const allowance = await usdcContract.allowance(this.signer.address, poolAddress);
+          if (allowance.eq(0)) {  // 如果授权数量为0，则不需要取消授权
+            console.log("已经不存在USDC授权, 无需取消!");
+            return;
+          }
+    
+        //   // 估算gas
+        //   const gasEstimate = await usdcContract.estimateGas.approve(poolAddress, 0);
+        //   console.log("Gas estimate:", gasEstimate.toString());
+    
+          // 发送交易
+          const tx = await usdcContract.approve(poolAddress, 0);
+          console.log("Transaction submitted:", tx.hash);
+    
+          // 等待交易确认
+          const receipt = await tx.wait();
+          console.log("Transaction confirmed:", receipt.transactionHash);
+          return receipt.transactionHash
+        } catch (error) {
+          console.error("Error while revoking USDC approval:", error.message);
+        }
+      }
+    }
+
+
+
+
+
+
 
 (async () => {
-    console.log("Now is ",VERSION," verison")
-    console.log("Now is ",VERSION," verison")
-    console.log("Now is ",VERSION," verison")
-    const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    // console.log("Now is ", VERSION, " verison")
+    // console.log("Now is ", VERSION, " verison")
+    // console.log("Now is ", VERSION, " verison")
+    // const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    // await myZksync.revoke_usdc_on_syncswap();
+    //await myZksync.sign_permit("0x80115c708E12eDd42E504c1cD52Aea96C547c05c", 1000000,7200);
     //await myZksync.deposit_All_funds_L1_to_L2();
     //await myZksync.Swap_Usdc_On_Syncswap(1);
     //await myZksync.Swap_Usdc_On_Mute(1);
     //await myZksync.Swap_Usdc_On_Spacefi(1);
-    //await myZksync.Swap_Usdc_to_300_On_Syncswap(4);
+    //await myZksync.Swap_Usdc_to_Target_On_Syncswap(4);
     //await myZksync.swapExactTokenForEthOnSpaceFi(USDC_ADDRESS, 2)
 
-    await myZksync.Add_Liquidity_On_Syncswap();
+    //await myZksync.Add_Liquidity_On_Syncswap();
     //await myZksync.depositEthFromL1toL2(0.1);
     //await myZksync.depositAllEthFromL1toL2()
     //await myZksync.withdrawEthFromL2toL1(0.05)
 
     //await myZksync.transferEthOnL2("0xB3E4F411309C20E6c3a048705803D415F905B72A",0.01)
     //await myZksync.swapEthForTokenOnSyncSwap(DAI_ADDRESS, 0.001);  //dai
-    await myZksync.mintRandomOnMintSquare()
-    //await myZksync.addLiquidityEthAndUsdcOnSyncSwap('0x9d29342309534095ac442fe5d255b3252aa770b5', 0.1);//
+    //await myZksync.mintRandomOnMintSquare()
+    //await myZksync.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, 1.9);//
+    //await myZksync.burnLiquiditySingleEthAndUsdcOnSyncSwap(USDC_ADDRESS)
+    //await myZksync.burnLiquiditySingleEthAndUsdcOnSyncSwap(USDC_ADDRESS)
+
     //await myZksync.swapEthForTokenOnMute(DAI_ADDRESS, 0.00001);  //dai
 
     // for (let i=0;i<=10;i++){

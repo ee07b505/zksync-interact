@@ -37,7 +37,7 @@ async function readCsvFile(fileName) {
 // 解锁所有钱包的私钥
 async function ethAccount(fileName="keys.csv") {
 	const password = readline.question('Please enter password: ', { hideEchoBack: true });
-	const records = await readCsvFile(fileName, { skipLines: 1 });
+	const records = await readCsvFile(fileName);
 	const unlockedKeys = [];
 	for (let Num = 1; Num < records.length; Num++) {
 	  const record = records[Num];
@@ -55,8 +55,9 @@ async function ethAccount(fileName="keys.csv") {
 
 async function ethAccount2(fileName = 'keys.csv', accountFileName = 'accounts.csv') {
 const password = readline.question('Please enter password: ', { hideEchoBack: true });
-const records = await readCsvFile(fileName, { skipLines: 1 });
+const records = await readCsvFile(fileName);
 const unlockedKeys = [];
+console.log(records);
 for (let i = 1; i < records.length; i++) {
     const record = records[i];
     const unlockedKey = unlockPrivateKey(record.encryptedPrivateKey, password);
@@ -120,7 +121,9 @@ async function main() {
 }
 
 if (require.main === module) {
-    //console.log(ethAccount2('keys.csv', 'account.csv'));
-    ethAccount2();
+    //ethAccount2();
+   // ethAccount().then(result => console.log(result) )
+
+
 }
 module.exports = { ethAccount };

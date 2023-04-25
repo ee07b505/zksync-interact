@@ -14,6 +14,11 @@
   },
   "eslintConfig": {},
   "dependencies": {
+    "crypto-js": "^4.1.1",
+    "csv-writer": "^1.6.0",
+    "ethereumjs-util": "^7.1.5",
+    "readline-sync": "^1.4.10",
+    "web3": "^1.9.0",
     "zksync-web3": "^0.14.3"
   }
 }
