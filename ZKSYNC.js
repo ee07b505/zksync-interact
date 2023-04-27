@@ -1,5 +1,6 @@
 'use strict';
-const { ethers, Contract, BigNumber } = require("ethers");
+const  ethers = require("ethers");
+const {  Contract, BigNumber } = require("ethers");
 const { defaultAbiCoder } = ethers.utils;
 const zksync  = require("zksync-web3");
 const fs = require("fs");
@@ -8,11 +9,7 @@ const Buffer = require('buffer').Buffer;
 const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 const util = require('util');
 var Web3 = require('web3');
-const { add } = require("../../../../../node_modules/cheerio/lib/api/traversing");
-const { timeStamp } = require("console");
-function sleep(seconds) {
-    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-}
+const {round_down_up_fromback,sleep} = require("./utils/utils.js");
 
 const {
     VERSION,
@@ -95,7 +92,7 @@ class ZKSYNC {
         //];
         this.tasks = ["Revoke_Usdc_On_Syncswap",];
         this.completedTasks = new Array(this.tasks.length).fill(false);
-        console.log(`[${this.Num}][${this.name}] ZKSYNC wallet created`);
+        console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
     }
 
     async deposit_All_funds_L1_to_L2() {
@@ -512,15 +509,36 @@ class ZKSYNC {
 
     async transferEthOnL2(address, amountInEther ) {
     try {
-
-        // Convert amount to wei
-        const amount = ethers.utils.parseEther(amountInEther.toString());
-        // Validate and convert address to checksum format
         const formattedAddress = ethers.utils.getAddress(address);
+
+        let balance_enough = false;
+        
+            let zk_gas = await zk_provider.getGasPrice()
+            let zk_balance = await this.signer.getBalance()
+            let gas_estimate = await zk_provider.estimateGas({
+                from: this.signer.address,
+                to: formattedAddress,
+            })
+    
+            if (amountInEther == -1){
+                value =  round_down_up_fromback(zk_balance.sub(BigNumber.from(gas_estimate))); //May have rounding eerror stuffs here...check again
+                balance_enough = 1
+            }
+            else{
+                value = ethers.utils.parseEther(amountInEther.toString())
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).add(value)
+                balance_enough = zk_balance.gte(needed)
+                if (!balance_enough) {
+                    console.log(" - Not enough Balance on wallet ",era_wallet.address," to send transaction for ERA to ETH bridge, waiting 5 seconds... - ")
+                    await sleep(5);
+                }
+            }        
+        
+
         const tx = {
             to: formattedAddress,
             token: zksync.utils.ETH_ADDRESS,
-            amount,
+            amount: value,
         }
         const balance = await this.signer.getBalance()
         await checkETHBalances(this.signer,formattedAddress)
@@ -529,8 +547,8 @@ class ZKSYNC {
             return;
         }
         const transfer = await this.signer.transfer(tx);
-        //const committedTxReceipt = await transfer.wait();
-        console.log(transfer.hash);
+        console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
+        return transfer.hash;
         // const finalizedTxReceipt = await transfer.waitFinalize();
         // console.log(finalizedTxReceipt);
         // const finalizedEthBalance = await this.zk_provider.getBalance(
@@ -1195,6 +1213,9 @@ class ZKSYNC {
 
     async revokeUsdcApproval(poolAddress) {
         const usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
+        // 估算gas
+        const gasEstimate = await usdcContract.estimateGas.approve(poolAddress, 0);
+        console.log("Gas estimate:", gasEstimate.toString());
     
         try {
           // 查询授权数量
@@ -1204,9 +1225,7 @@ class ZKSYNC {
             return;
           }
     
-        //   // 估算gas
-        //   const gasEstimate = await usdcContract.estimateGas.approve(poolAddress, 0);
-        //   console.log("Gas estimate:", gasEstimate.toString());
+
     
           // 发送交易
           const tx = await usdcContract.approve(poolAddress, 0);
@@ -1220,7 +1239,69 @@ class ZKSYNC {
           console.error("Error while revoking USDC approval:", error.message);
         }
       }
+//Arbitrum: 9002
+//Era: 9014
+//ETH:9001
+//Matic: 9006
+//OPTIMISM: 9007
+//lite:9003
+//WARNING: withholder fee.
+    
+      async bridgeOrbiterERAtoETH(value){
+
+        const era_wallet = this.signer
+        const ORBITER_ERA_ADDRESS = "0xE4eDb277e41dc89aB076a1F049f4a3EfA700bCE8"
+        const ORBITER_ETH_NETWORK_ID = "9003"  ///zksync lite
+    
+        let balance_enough = false;
+        while(!balance_enough){
+            let zk_gas = await zk_provider.getGasPrice()
+            let zk_balance = await era_wallet.getBalance()
+            let gas_estimate = await zk_provider.estimateGas({
+                from: era_wallet.address,
+                to: ORBITER_ERA_ADDRESS,
+            })
+    
+            if (value == -1){
+                value =  round_down_up_fromback(zk_balance.sub(BigNumber.from(gas_estimate))).add(ORBITER_ETH_NETWORK_ID); //May have rounding eerror stuffs here...check again
+                balance_enough = 1
+            }
+            else{
+                value = ethers.utils.parseEther(value.toString()).add(ORBITER_ETH_NETWORK_ID)
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).add(value)
+                balance_enough = zk_balance.gte(needed)
+                if (!balance_enough) {
+                    console.log(" - Not enough Balance on wallet ",era_wallet.address," to send transaction for ERA to ETH bridge, waiting 5 seconds... - ")
+                    await sleep(5);
+                }
+            }        
+        }
+    
+        const tx_transfer = await era_wallet.transfer({
+            to: ORBITER_ERA_ADDRESS,
+            token: zksync.utils.ETH_ADDRESS,
+            amount: value,
+        });
+        console.log(" - Tx submitted for bridge ERA to ETH on wallet: ", era_wallet.address, ", hash (ERA)" , tx_transfer.hash, " - ")
+        let receipt = await tx_transfer.wait()
+        if (receipt.status){
+            console.log(" - Tx included for bridge ERA to ETH on wallet: ",era_wallet.address, " - ")
+        }
+        else{
+            console.log(" - Tx inclusion failed for bridge ERA to ETH on wallet: ",era_wallet.address, " - ")
+        }
     }
+
+
+
+
+
+
+
+    
+    
+    
+}
 
 
 
@@ -1233,6 +1314,7 @@ class ZKSYNC {
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    // await myZksync.bridgeOrbiterERAtoETH(0.01);
     // await myZksync.revoke_usdc_on_syncswap();
     //await myZksync.sign_permit("0x80115c708E12eDd42E504c1cD52Aea96C547c05c", 1000000,7200);
     //await myZksync.deposit_All_funds_L1_to_L2();
