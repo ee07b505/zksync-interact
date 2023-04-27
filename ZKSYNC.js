@@ -9,7 +9,7 @@ const Buffer = require('buffer').Buffer;
 const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 const util = require('util');
 var Web3 = require('web3');
-const {round_down_up_fromback,sleep} = require("./utils/utils.js");
+const {round_down_up_fromback,sleep,generateRandomAmount} = require("./utils/utils.js");
 
 const {
     VERSION,
@@ -90,7 +90,7 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        this.tasks = ["Revoke_Usdc_On_Syncswap",];
+        this.tasks = ["Mint_DAO_NFT",];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
     }
@@ -271,6 +271,47 @@ class ZKSYNC {
         await this.completeTask(1, Hash);
     }
 
+    async Mint_DAO_NFT() {
+        console.log(`[${this.Num}][${this.name}] mint_DAO_NFT is running...`);
+        let Hash
+        try {
+            Hash = await this.mint_DAO_NFT()
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] mint_DAO_NFT: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
+    }
+
+async Bridge_Orbiter_ERA_to_ETH(){
+    const theMinimumAmountRetainedByETH = 0.03
+    const theMaximumAmountRetainedByETH = 0.05
+    console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH is running...`);
+    let Hash
+    try {
+    const amountETH = generateRandomAmount(theMinimumAmountRetainedByETH, theMaximumAmountRetainedByETH, 3);
+    console.log(`Transfer of ETH is ${amountETH.toFixed(3)}`)
+    const balanceofETH = await checkETHBalances(this.signer)
+    const value = (ethers.utils.formatEther(balanceofETH)-amountETH).toFixed(6)
+    if (value < 0) {
+        console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH: Not enough ETH to transfer`);
+        throw new Error('Not enough ETH to transfer')
+    }
+    console.log(`Transfer of ETH is ${value}`)
+    Hash = await this.bridgeOrbiterERAtoETH(value)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+}
+
+    
     getNextTask() {
         const remainingRandomTasks = this.getRemainingTasks();
         //if (remainingTasks.length === 7) {
@@ -512,16 +553,19 @@ class ZKSYNC {
         const formattedAddress = ethers.utils.getAddress(address);
 
         let balance_enough = false;
-        
-            let zk_gas = await zk_provider.getGasPrice()
-            let zk_balance = await this.signer.getBalance()
-            let gas_estimate = await zk_provider.estimateGas({
-                from: this.signer.address,
-                to: formattedAddress,
-            })
-    
+        let value = 0;
+        let zk_gas = await zk_provider.getGasPrice()
+        let zk_balance = await this.signer.getBalance()
+        let gas_estimate = await zk_provider.estimateGas({
+            from: this.signer.address,
+            to: formattedAddress,
+        })
+
             if (amountInEther == -1){
-                value =  round_down_up_fromback(zk_balance.sub(BigNumber.from(gas_estimate))); //May have rounding eerror stuffs here...check again
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).mul(15).div(10)
+                console.log("gas fee needed is",needed.toString())
+                value =  round_down_up_fromback(zk_balance.sub(needed)); //May have rounding eerror stuffs here...check again
+                console.log("value is",value.toString())
                 balance_enough = 1
             }
             else{
@@ -540,14 +584,12 @@ class ZKSYNC {
             token: zksync.utils.ETH_ADDRESS,
             amount: value,
         }
-        const balance = await this.signer.getBalance()
+
         await checkETHBalances(this.signer,formattedAddress)
-        if (balance.lt(amount)) {
-            console.log('Insufficient balance');
-            return;
-        }
         const transfer = await this.signer.transfer(tx);
         console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
+        await checkETHBalances(this.signer,formattedAddress)
+
         return transfer.hash;
         // const finalizedTxReceipt = await transfer.waitFinalize();
         // console.log(finalizedTxReceipt);
@@ -1246,7 +1288,8 @@ class ZKSYNC {
 //OPTIMISM: 9007
 //lite:9003
 //WARNING: withholder fee.
-    
+//const amountETH = generateRandomAmount(process.env.ETH_BRIDGE_MIN * 10 ** 18, process.env.ETH_BRIDGE_MAX * 10 ** 18, 0);
+
       async bridgeOrbiterERAtoETH(value){
 
         const era_wallet = this.signer
@@ -1263,7 +1306,9 @@ class ZKSYNC {
             })
     
             if (value == -1){
-                value =  round_down_up_fromback(zk_balance.sub(BigNumber.from(gas_estimate))).add(ORBITER_ETH_NETWORK_ID); //May have rounding eerror stuffs here...check again
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).mul(15).div(10)
+                console.log("gas fee needed is",needed.toString())
+                value =  round_down_up_fromback(zk_balance.sub(needed)).add(ORBITER_ETH_NETWORK_ID); //May have rounding eerror stuffs here...check again
                 balance_enough = 1
             }
             else{
@@ -1292,19 +1337,29 @@ class ZKSYNC {
         }
     }
 
+    async mint_DAO_NFT(){
+        //https://app.mintdao.io/
 
-
-
-
-
-
-    
-    
-    
+        try{
+            const mint_DAO_NFT_address='0xa3095bCBEDD3F125FB21a7aeAc75959944A3b6Ee'
+            const payload = {   
+                to: mint_DAO_NFT_address,
+                data:'0xa71bbebe0000000000000000000000000000000000000000000000000000000000000001'
+            }
+            const gasLimit =await this.signer.estimateGas(payload)
+            const tx = await this.signer.sendTransaction({...payload, gasLimit:Math.floor(+gasLimit.toString()*0.5)})
+            await tx.wait();
+            console.log(" - Tx submitted for mint DAO NFT on wallet: ", this.signer.address, ", hash (ETH)" , tx.hash, " - ")
+            return tx.hash
+            }
+            catch (error) {
+                console.error("Error while mint DAO NFT:", error.message);
+            }
+        
 }
 
 
-
+}
 
 
 
@@ -1314,6 +1369,9 @@ class ZKSYNC {
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    // await myZksync.Bridge_Orbiter_ERA_to_ETH();
+    //await myZksync.mint_DAO_NFT();
+    //await myZksync.transferEthOnL2('0xCaeaC0f8061661b3eC4315E04219ABec67eDcbF4',-1)
     // await myZksync.bridgeOrbiterERAtoETH(0.01);
     // await myZksync.revoke_usdc_on_syncswap();
     //await myZksync.sign_permit("0x80115c708E12eDd42E504c1cD52Aea96C547c05c", 1000000,7200);

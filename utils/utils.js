@@ -9,4 +9,9 @@
  function sleep(seconds) {
     return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 }
-module.exports = {  round_down_up_fromback, sleep }
+
+const generateRandomAmount = (min, max, num) => {
+    const amount = Number(Math.random() * (parseFloat(max) - parseFloat(min)) + parseFloat(min));
+    return Number(parseFloat(amount).toFixed(num));
+}
+module.exports = {  round_down_up_fromback, sleep ,generateRandomAmount}
