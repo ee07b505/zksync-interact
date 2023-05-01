@@ -365,6 +365,7 @@ FodyWeavers.xsd
 ./projects/*
 /projects/*
 ./Log/*
+./json/*
 
 keys.csv
 .keys.csv

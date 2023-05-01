@@ -1,6 +1,6 @@
 {
   "VERSION": "ZKSYNC Mainnet",
-  "ADDRESS": "0xB3E4F41309C20E6c3a048705803D415F905B72A",
+  "ADDRESS": "",
   "PRIVATE_KEY": "",
   "ZK_RPC_URL": "https://zksync-era.rpc.thirdweb.com/",
   "ETH_RPC_URL": "https://mainnet.infura.io/v3/e014a014a2c0479e957e62810307114b",

@@ -90,7 +90,7 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        this.tasks = ["Mint_DAO_NFT",];
+        this.tasks = ["Mint_Dogera_ALL",];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
     }
@@ -307,6 +307,23 @@ async Bridge_Orbiter_ERA_to_ETH(){
         return;
     }
     await this.completeTask(1, Hash);
+
+
+}
+
+async Mint_Dogera_ALL(){
+
+    console.log(`[${this.Num}][${this.name}] Mint_Dogera_ALL is running...`);
+    let Hash
+    try {
+    Hash = await this.mint_dogera()
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_Dogera_ALL: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
 
 
 }
@@ -1358,6 +1375,63 @@ async Bridge_Orbiter_ERA_to_ETH(){
         
 }
 
+    async mint_dogera(){
+        try{
+            const abi = [
+                {
+                  inputs: [
+                    {
+                      name: "_address",
+                      type: "address",
+                    },
+                    {
+                      name: "_amount",
+                      type: "uint256",
+                    },
+                    {
+                      name: "_merkleProof",
+                      type: "bytes32[]",
+                    },
+                  ],
+                  name: "mint",
+                  type: "function",
+                  stateMutability: "nonpayable",
+                },
+              ];
+              const contractAddress ="0xA59af353E423F54D47F2Ce5F85e3e265d95282Cd"
+              const contract = new zksync.Contract(contractAddress, abi, this.signer);
+              const walletAddressJSONPath = `./json/${this.address}.json`;
+              const walletAddressJSON = JSON.parse(fs.readFileSync(walletAddressJSONPath, "utf8"));
+              const _merkleProof = walletAddressJSON[this.address];
+              if (!_merkleProof) {
+                console.error("No merkle proof found for the provided wallet address in the JSON file.");
+                return;
+              }
+              
+              if (_merkleProof.length === 0) {
+                throw new Error("Merkle proof is empty.");
+              }
+
+              const _address = "0xCaeaC0f8061661b3eC4315E04219ABec67eDcbF4";
+              const _amount = ethers.utils.parseUnits("8000000000", "wei");
+              const gasEstimate = await contract.estimateGas.mint(_address, _amount, _merkleProof);
+              console.log(gasEstimate);
+              const gasLimit = Math.floor(+gasEstimate.toString() * 0.7);
+              console.log("gasLimit is",gasLimit);
+              const mintTx = await contract.mint(_address, _amount, _merkleProof, { gasLimit });
+              const receipt = await mintTx.wait();    
+    
+              console.log("Transaction successfully mined:", receipt.transactionHash);
+              return receipt.transactionHash
+        }
+        catch (error) {
+            console.error("Error while mint dogera:", error.message);
+        }
+
+
+    }
+
+
 
 }
 
@@ -1369,7 +1443,7 @@ async Bridge_Orbiter_ERA_to_ETH(){
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
-    // await myZksync.Bridge_Orbiter_ERA_to_ETH();
+    // await myZksync.mint_dogera();
     //await myZksync.mint_DAO_NFT();
     //await myZksync.transferEthOnL2('0xCaeaC0f8061661b3eC4315E04219ABec67eDcbF4',-1)
     // await myZksync.bridgeOrbiterERAtoETH(0.01);
