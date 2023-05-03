@@ -19,7 +19,7 @@ function decryptPrivateKey(encryptedPrivateKey, password) {
 
 // 解锁加密的私钥
 function unlockPrivateKey(encryptedPrivateKey, password) {
-    const privateKey = decryptPrivateKey(encryptedPrivateKey, password);
+  const privateKey = decryptPrivateKey(encryptedPrivateKey, password);
   const wallet = new ethers.Wallet(privateKey);
   return { address: wallet.address, privateKey: wallet.privateKey };
 }
@@ -28,21 +28,22 @@ function unlockPrivateKey(encryptedPrivateKey, password) {
 async function readCsvFile(fileName) {
   const contents = await fs.promises.readFile(fileName, 'utf-8');
   const records = contents.split('\n').map(record => {
-    const [address, encryptedPrivateKey] = record.split(',');
-    return { address, encryptedPrivateKey };
+    const [address, encryptedPrivateKey, okxAddress] = record.split(',');
+    return { address, encryptedPrivateKey, okxAddress};
   });
-  return records.slice(0, records.length - 1);
+  return records.slice(1, records.length - 1);
 }
 
 // 解锁所有钱包的私钥
 async function ethAccount(fileName="keys.csv") {
 	const password = readline.question('Please enter password: ', { hideEchoBack: true });
-	const records = await readCsvFile(fileName);
+	const records = await readCsvFile(fileName, { skipLines: 1 });
 	const unlockedKeys = [];
-	for (let Num = 1; Num < records.length; Num++) {
+	for (let Num = 0; Num < records.length; Num++) {
 	  const record = records[Num];
 	  const unlockedKey = unlockPrivateKey(record.encryptedPrivateKey, password);
-	  unlockedKeys.push({ Num, ...unlockedKey });
+    const OkxAdress = record.okxAddress;
+	  unlockedKeys.push({ Num, OkxAdress, ...unlockedKey });
 
 	}
 	return unlockedKeys
@@ -57,8 +58,7 @@ async function ethAccount2(fileName = 'keys.csv', accountFileName = 'accounts.cs
 const password = readline.question('Please enter password: ', { hideEchoBack: true });
 const records = await readCsvFile(fileName);
 const unlockedKeys = [];
-console.log(records);
-for (let i = 1; i < records.length; i++) {
+for (let i = 0; i < records.length; i++) {
     const record = records[i];
     const unlockedKey = unlockPrivateKey(record.encryptedPrivateKey, password);
     unlockedKeys.push(unlockedKey);
@@ -106,6 +106,29 @@ async function writeToCsvFile(fileName, data) {
     console.log('Keys written to CSV file.');
 }
 
+async function encryptEthPrivateKeyToCSV(fileName, encryptedFileName = 'encrypted_keys.csv') {
+  const password = readline.question('Please enter password: ', { hideEchoBack: true });
+
+  // 读取未加密的 CSV 文件
+  const records= await readCsvFile(fileName);
+
+  console.log(records);
+  // 加密所有私钥并构造新的数据结构
+  const encryptedRecords = records.map((record) => {
+    const encryptedPrivateKey = encryptPrivateKey(record.encryptedPrivateKey, password);
+    return { address: record.address, encryptedPrivateKey };
+  });
+
+  // 将加密后的数据写入新的 CSV 文件
+  await writeEncryptedToCsvFile(encryptedFileName, encryptedRecords);
+
+}
+
+
+
+
+
+
 // 生成钱包和加密私钥的主函数
 async function main() {
   const password = readline.question('Please enter password: ', { hideEchoBack: true });
@@ -121,9 +144,8 @@ async function main() {
 }
 
 if (require.main === module) {
-    //ethAccount2();
-   // ethAccount().then(result => console.log(result) )
-
-
+    //console.log(ethAccount2('keys.csv', 'account.csv'));
+    ethAccount2('encrypted_keys.csv', 'account2.csv');
+    //encryptEthPrivateKeyToCSV('account.csv', 'encrypted_keys.csv');
 }
-module.exports = { ethAccount };
+module.exports = { ethAccount,readCsvFile };

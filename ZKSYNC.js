@@ -1,5 +1,8 @@
 'use strict';
+const  {readCsvFile} =require("./account/encrypto")
 const  ethers = require("ethers");
+const utils = require("./utils/zklite");
+const zklite = require("zksync");
 const {  Contract, BigNumber } = require("ethers");
 const { defaultAbiCoder } = ethers.utils;
 const zksync  = require("zksync-web3");
@@ -24,7 +27,8 @@ const {
     MintSquareContract,
     SpaceFi_Router_Contract,
     wETH_ADDRESS,
-    USDC_ADDRESS
+    USDC_ADDRESS,
+    Dogera_ADDRESS
 } = config;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -72,7 +76,7 @@ async function checkERC20Balances(signer,tokenAddress) {
 
 
 class ZKSYNC {
-    constructor(Num, address, privateKey) {
+    constructor(Num, address, privateKey,OkxAdress) {
         this.zk_provider = zk_provider;
         this.eth_provider = eth_provider;
         this.Num = Num;
@@ -81,6 +85,7 @@ class ZKSYNC {
         this.privateKey = privateKey;
         this.signer = new zksync.Wallet(privateKey, zk_provider,eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
+        this.okxAddress=ethers.utils.getAddress(OkxAdress.trim());;
         //this.tasks = [
         //    "deposit_All_funds_L1_to_L2",
         //    "Swap_Usdc_On_Syncswap",
@@ -90,10 +95,11 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        this.tasks = ["Mint_Dogera_ALL",];
+        this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
-    }
+        console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
+    } 
 
     async deposit_All_funds_L1_to_L2() {
         console.log(`[${this.Num}][${this.name}] deposit_All_funds_L1_to_L2 is running...`);
@@ -104,7 +110,7 @@ class ZKSYNC {
             const randomNum = Math.random() * (max - min) + min;
 
             Hash = await this.depositEthFromL1toL2(randomNum);
-            console.log(Hash)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error depositing all ETH from L1 to L2: ${error}`);
             this.failTask(1, error)
@@ -123,7 +129,7 @@ class ZKSYNC {
             const estimateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
             console.log("estimateETH is ", estimateETH);
             Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, estimateETH)
-            console.log(Hash)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Syncswap: ${error}`);
             this.failTask(2, error)
@@ -141,7 +147,7 @@ class ZKSYNC {
             console.log(randomMoney)
             const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, randomMoney)
             Hash = await this.swapEthForTokenOnMute(USDC_ADDRESS, esitmateETH)
-            console.log(Hash)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Swap_Usdc_On_Mute: ${error}`);
             this.failTask(3, error)
@@ -172,7 +178,7 @@ class ZKSYNC {
 
         try {
              Hash = await this.mintRandomOnMintSquare();
-            console.log(Hash)
+             console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Mint_NFT_On_Mintsquare: ${error}`);
             this.failTask(5, error)
@@ -203,7 +209,7 @@ class ZKSYNC {
             console.log(TokenDiff.toString())
             const esitmateETH = await this.estimateAmountInforEthOnSyncSwap(USDC_ADDRESS, TokenDiffNumber)
              Hash = await this.swapEthForTokenOnSyncSwap(USDC_ADDRESS, esitmateETH)
-            console.log(Hash)
+             console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Swap_Usdc_to_Target_On_Syncswap: ${error}`);
             this.failTask(6, error)
@@ -223,7 +229,7 @@ class ZKSYNC {
             let TokenBalance = await checkERC20Balances(this.signer, USDC_ADDRESS);
             const tokenAmount = ethers.utils.formatUnits(TokenBalance, tokenDecimal)
             Hash = await this.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, tokenAmount)
-            console.log(Hash)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Add_Liquidity_On_Syncswap: ${error}`);
             this.failTask(7, error)
@@ -286,27 +292,28 @@ class ZKSYNC {
     }
 
 async Bridge_Orbiter_ERA_to_ETH(){
-    const theMinimumAmountRetainedByETH = 0.03
-    const theMaximumAmountRetainedByETH = 0.05
+    const theMinimumAmountSentByETH = 0.0063
+    const theMaximumAmountSentByETH = 0.0067
     console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH is running...`);
     let Hash
     try {
-    const amountETH = generateRandomAmount(theMinimumAmountRetainedByETH, theMaximumAmountRetainedByETH, 3);
-    console.log(`Transfer of ETH is ${amountETH.toFixed(3)}`)
+    const amountETH = generateRandomAmount(theMinimumAmountSentByETH, theMaximumAmountSentByETH, 5);
+    console.log(`Transfer of ETH is ${amountETH}`)
     const balanceofETH = await checkETHBalances(this.signer)
     const value = (ethers.utils.formatEther(balanceofETH)-amountETH).toFixed(6)
     if (value < 0) {
         console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH: Not enough ETH to transfer`);
         throw new Error('Not enough ETH to transfer')
     }
-    console.log(`Transfer of ETH is ${value}`)
-    Hash = await this.bridgeOrbiterERAtoETH(value)
+    console.log(`Transfer of ETH is ${amountETH}`)
+    Hash = await this.bridgeOrbiterERAtoETH(amountETH)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] Bridge_Orbiter_ERA_to_ETH: ${error}`);
-        this.failTask(1, error)
+        this.failTask(2, error)
         return;
     }
-    await this.completeTask(1, Hash);
+    await this.completeTask(2, Hash);
 
 
 }
@@ -317,6 +324,7 @@ async Mint_Dogera_ALL(){
     let Hash
     try {
     Hash = await this.mint_dogera()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] Mint_Dogera_ALL: ${error}`);
         this.failTask(1, error)
@@ -328,21 +336,63 @@ async Mint_Dogera_ALL(){
 
 }
 
-    
+async Syncswap_Swap_Dogera_to_ETH(){
+
+    console.log(`[${this.Num}][${this.name}] Syncswap_Swap_Dogera_to_ETH is running...`);
+    let Hash
+    try {
+
+    const TokenBalance = await checkERC20Balances(this.signer,Dogera_ADDRESS)
+    if (TokenBalance ==0){
+        console.log(`[${this.name}] do not have dogera`)
+        await this.completeTask(3, 'NoDogera');
+    }
+    Hash = await this.sync_swap_any_to_any(Dogera_ADDRESS,wETH_ADDRESS,"-1",5)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_Dogera_to_ETH: ${error}`);
+        this.failTask(3, error)
+        return;
+    }
+    await this.completeTask(3, Hash);
+
+
+
+}
+ async Zklite_ActivateAccounts_MintNFT_TransferToOkx(){
+
+    console.log(`[${this.Num}][${this.name}] Zklite_ActivateAccounts_MintNFT_TransferToOkx is running...`);
+    let Hash
+    try {
+
+    Hash = await this.zklite_interact(this.okxAddress)
+    console.log(`https://zkscan.io/explorer/transactions/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Zklite_ActivateAccounts_MintNFT_TransferToOkx: ${error}`);
+        this.failTask(4, error)
+        return;
+    }
+    await this.completeTask(4, Hash);
+
+
+ }
+
+
+
     getNextTask() {
-        const remainingRandomTasks = this.getRemainingTasks();
+        const remainingTasks = this.getRemainingTasks();
         //if (remainingTasks.length === 7) {
         //    return 'deposit_All_funds_L1_to_L2';
         //}
         //if (remainingTasks.length === 2) {
         //    return 'Swap_Usdc_to_Target_On_Syncswap';
         //}
-        //if (remainingTasks.length === 1) {
-        //    return 'Burn_Liquidity_USDC_On_Syncswap';//Add_Liquidity_On_Syncswap
-        //}
-        //const remainingRandomTasks = remainingTasks.filter(
-        //    task => !['deposit_All_funds_L1_to_L2', 'Swap_Usdc_to_Target_On_Syncswap', 'Add_Liquidity_On_Syncswap'].includes(task)
-        //);
+        if (remainingTasks.length === 1) {
+           return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
+        }
+        const remainingRandomTasks = remainingTasks.filter(
+           task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
+        );
         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
         return remainingRandomTasks[randomIndex];
     }
@@ -1272,16 +1322,16 @@ async Mint_Dogera_ALL(){
 
     async revokeUsdcApproval(poolAddress) {
         const usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
-        // 估算gas
-        const gasEstimate = await usdcContract.estimateGas.approve(poolAddress, 0);
-        console.log("Gas estimate:", gasEstimate.toString());
+        // 估算gas 不好用 会报错
+        // const gasEstimate = await usdcContract.estimateGas.approve(poolAddress, 0);
+        // console.log("Gas estimate:", gasEstimate.toString());
     
         try {
           // 查询授权数量
           const allowance = await usdcContract.allowance(this.signer.address, poolAddress);
           if (allowance.eq(0)) {  // 如果授权数量为0，则不需要取消授权
             console.log("已经不存在USDC授权, 无需取消!");
-            return;
+            return "NoNeedRevoke";
           }
     
 
@@ -1298,6 +1348,36 @@ async Mint_Dogera_ALL(){
           console.error("Error while revoking USDC approval:", error.message);
         }
       }
+
+
+      async revokeTokenApproval(tokenAddress,routerAddress) {
+        const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, this.signer);
+        // 估算gas
+        const gasEstimate = await tokenContract.estimateGas.approve(routerAddress, 0);
+        console.log("Revoke Token Approval of gas estimate:", gasEstimate.toString());
+    
+        try {
+          // 查询授权数量
+          const allowance = await tokenContract.allowance(this.signer.address, routerAddress);
+          if (allowance.eq(0)) {  // 如果授权数量为0，则不需要取消授权
+            console.log("已经不存在授权, 无需取消!");
+            return;
+          }
+    
+
+    
+          // 发送交易
+          const tx = await tokenContract.approve(routerAddress, 0);
+          console.log("Transaction submitted:", tx.hash);
+    
+          // 等待交易确认
+          const receipt = await tx.wait();
+          console.log("Transaction confirmed:", receipt.transactionHash);
+          return receipt.transactionHash
+        } catch (error) {
+          console.error("Error while revoking token approval:", error.message);
+        }
+      }
 //Arbitrum: 9002
 //Era: 9014
 //ETH:9001
@@ -1308,7 +1388,10 @@ async Mint_Dogera_ALL(){
 //const amountETH = generateRandomAmount(process.env.ETH_BRIDGE_MIN * 10 ** 18, process.env.ETH_BRIDGE_MAX * 10 ** 18, 0);
 
       async bridgeOrbiterERAtoETH(value){
-
+        if (value < 0.0062){
+            console.log("value too small")
+            throw new Error("value too small")
+            }
         const era_wallet = this.signer
         const ORBITER_ERA_ADDRESS = "0xE4eDb277e41dc89aB076a1F049f4a3EfA700bCE8"
         const ORBITER_ETH_NETWORK_ID = "9003"  ///zksync lite
@@ -1352,6 +1435,7 @@ async Mint_Dogera_ALL(){
         else{
             console.log(" - Tx inclusion failed for bridge ERA to ETH on wallet: ",era_wallet.address, " - ")
         }
+        return tx_transfer.hash
     }
 
     async mint_DAO_NFT(){
@@ -1431,6 +1515,226 @@ async Mint_Dogera_ALL(){
 
     }
 
+    async  sync_swap_any_to_any(token_in, token_out, amount_in, slippage) {
+    let era_wallet = this.signer
+    const classicPoolFactoryAddress = "0xf2DAd89f2788a8CD54625C60b55cD3d2D0ACa7Cb"
+    const routerAddress = "0x2da10A1e27bF85cEdD8FFb1AbBe97e53391C0295"
+    const wETH = "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91"
+
+    const token_in_contract = new zksync.Contract(token_in, erc20Abi, zk_provider)
+    const token_in_decimals = await token_in_contract.decimals()
+
+    let value;
+    const era_gasPrice = await zk_provider.getGasPrice()
+    //Implement -1
+    if (amount_in == -1){
+        if (token_in == wETH){
+            let eth_bal = await era_wallet.getBalance()
+            value = eth_bal.sub(BigNumber.from("4300000").mul(era_gasPrice))
+        }
+        else{
+            let token_bal = await token_in_contract.balanceOf(this.address)
+            value = token_bal
+        }
+    }
+    else{
+        value = ethers.utils.parseUnits(amount_in, token_in_decimals);
+    }
+    const TokenBalanceInWei = await checkERC20Balances(this.signer, token_in);
+    let TokenDiff =  TokenBalanceInWei.sub(value);
+    console.log("TokenDiff", TokenDiff.toString())
+    if (TokenDiff.lt(0)) {
+        console.log(" - Insufficient funds to swap on wallet: ",era_wallet.address, " - ")
+        return;
+    }
+
+
+
+
+    if (value <= 0) {
+        return "Insufficient funds to swap"
+    }
+    //POTENTIALLY ANOTHER POOL ABI FOR STABLE: https://syncswap.gitbook.io/api-documentation/resources/abis
+
+    const classicPoolFactory = new ethers.Contract(
+        classicPoolFactoryAddress,
+        classicPoolFactoryAbi,
+        zk_provider
+    );
+
+    const poolAddress = await classicPoolFactory.getPool(token_in, token_out);
+    // Checks whether the pool exists.
+    if (poolAddress === ZERO_ADDRESS) {
+        throw Error('Pool does not exist.');
+    }
+    const pool = new ethers.Contract(poolAddress, SyncswapPoolABI, zk_provider);
+
+    const amount_Out = await pool.getAmountOut(token_in, value, this.address)
+    const withdrawMode = 1;
+    const swapData = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint8"],
+        [token_in, era_wallet.address, withdrawMode], // tokenIn, to, withdraw mode
+    );
+    const steps = [{
+        pool: poolAddress,
+        data: swapData,
+        callback: ZERO_ADDRESS, // we don't have a callback
+        callbackData: '0x',
+    }];
+
+    // If we want to use the native ETH as the input token,
+    // the `tokenIn` on path should be replaced with the zero address.
+    // Note: however we still have to encode the wETH address to pool's swap data.
+
+    const paths = [{
+        steps: steps,
+        // tokenIn: token_in,
+        tokenIn: (token_in=="0x5aea5775959fbc2557cc8789bc1bf90a239d9a91")? ZERO_ADDRESS:token_in, //Anomaly
+        amountIn: value,
+    }];
+
+    const router = new ethers.Contract(routerAddress, SyncswapRouterAbi, this.signer);
+
+    // Note: checks approval for ERC20 tokens.
+    // The router will handle the deposit to the pool's vault account.
+
+
+    //Approve, gas Limit 1000000
+
+    if (token_in != wETH){
+
+        const allowance = await token_in_contract.allowance(this.signer.address, SYNCSWAP_ROUTER_ADDRESS);
+        console.log(`Allowance: ${ethers.utils.formatEther(allowance)}`);
+
+        if (allowance.eq(0)) {
+            console.log("Not authorized, approving...");
+            const approveTx = await token_in_contract.connect(this.signer).approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
+            await approveTx.wait();
+            console.log(`Transaction approved: ${approveTx.hash}`);
+        }
+        
+
+    }
+    
+
+    const gasEstimate = await router.estimateGas.swap(
+        paths, // paths
+        amount_Out.mul(BigNumber.from("100").sub(BigNumber.from(slippage)).div(BigNumber.from("100"))), // amountOutMin // Note: ensures slippage here
+        BigNumber.from(Math.floor(Date.now() / 1000)).add(1800), // deadline // 30 minutes
+        {
+            // value: (token_in==ZERO_ADDRESS)?value:BigNumber.from(0), //Anomaly
+            value: (token_in==wETH)?value:BigNumber.from(0),
+            gasLimit: BigNumber.from("4300000"),
+            gasPrice: era_gasPrice,
+        },
+    );
+
+    console.log("gasLimit estimate is",gasEstimate);
+    // const gasLimit = Math.floor(+gasEstimate.toString() * 0.7);
+    // console.log("gasLimit is",gasLimit);
+
+    const response = await router.swap(
+        paths, // paths
+        amount_Out.mul(BigNumber.from("100").sub(BigNumber.from(slippage)).div(BigNumber.from("100"))), // amountOutMin // Note: ensures slippage here
+        BigNumber.from(Math.floor(Date.now() / 1000)).add(1800), // deadline // 30 minutes
+        {
+            // value: (token_in==ZERO_ADDRESS)?value:BigNumber.from(0), //Anomaly
+            value: (token_in==wETH)?value:BigNumber.from(0),
+            gasLimit: BigNumber.from("4300000"),
+            gasPrice: era_gasPrice,
+        },
+    );
+
+    console.log("Swap submitted from on wallet ",this.address,", hash: ", response.hash)
+    const wait = await response.wait();
+    console.log("Swap on wallet ",this.address," included, gas used: ", wait.gasUsed.toString()) 
+    await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
+    return response.hash 
+}
+
+async zklite_interact (toAddress)  {
+    const token = "ETH";
+    const networkName = "mainnet";
+    const zkSyncProvider = await utils.getZkSyncProvider(networkName);
+      const ethersProvider = eth_provider
+    console.log("Creating a eth mainnet wallet ");
+    const ethWallet = new ethers.Wallet(
+      this.privateKey,
+      ethersProvider
+    );
+    console.log(`Ethereum address is: ${ethWallet.address}`);
+    const ethWalletInitialBalance = await ethWallet.getBalance();
+    console.log(
+      `Ethereum  balance on mainnet is: ${ethers.utils.formatEther(
+        ethWalletInitialBalance
+      )}`
+    );
+  
+    console.log("Creating a zklite wallet");
+    const zkliteWallet = await utils.initAccount(
+        ethWallet,
+      zkSyncProvider
+    );
+    const balanceInwei = await zkliteWallet.getBalance('ETH');
+    const committedETHBalance  = ethers.utils.formatEther(balanceInwei);
+    if (committedETHBalance < 0.002){
+        console.log("Not enough ETH in wallet, The task is com");
+        return "NoEnoughETH"
+    }
+    try {
+      console.log("Register Account...");
+      await utils.displayZkSyncBalance(zkliteWallet);
+      await utils.registerAccount(zkliteWallet);
+  
+      /////////////////////////
+  
+      console.log("Minting NFT...");
+      await utils.displayZkSyncBalance(zkliteWallet);
+      const NFTtx =await utils.Mint_NFT(zkliteWallet);
+          /////////////////////////
+  
+      console.log("Transferring...");
+      const transferFee = await utils.getFee(
+        "Transfer",
+        toAddress,
+        token,
+        zkSyncProvider
+      );
+      console.log("transferFee is: ", transferFee.toString());
+      const balanceInwei = await zkliteWallet.getBalance('ETH');
+      const committedETHBalance  = ethers.utils.formatEther(balanceInwei);
+        console.log("committedETHBalance is: ", committedETHBalance.toString());
+        const committedETHBalanceBN = ethers.utils.parseEther(committedETHBalance.toString());
+        const transferFeeBN = ethers.utils.parseEther(transferFee.toString());
+        let transfer_amount = committedETHBalanceBN.sub(transferFeeBN);
+       transfer_amount = ethers.utils.formatEther(transfer_amount);
+        console.log("transfer_amount is: ", transfer_amount.toString());
+      if (transfer_amount<0) {
+        console.log("No balance to transfer");
+        throw new Error("No balance to transfer");
+        return;
+    }
+      console.log("amount is: ", transfer_amount.toString());
+  
+      const response = await utils.transfer(
+        zkliteWallet,
+        toAddress,
+        transfer_amount.toString(),
+        transferFee,
+        token
+      );
+      await utils.displayZkSyncBalance(zkliteWallet);
+      return response;
+  
+    } catch (error) {
+      console.log("Error while awaiting confirmation from the zkSync operators.");
+      console.log(error);
+      }
+  }
+
+
+
+
 
 
 }
@@ -1439,14 +1743,19 @@ async Mint_Dogera_ALL(){
 
 
 (async () => {
+
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
-    // const myZksync = new ZKSYNC(1, ADDRESS, PRIVATE_KEY);
+    // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY);
+    // await myZksync.Syncswap_Swap_Dogera_to_ETH();
+    //await myZksync.bridgeOrbiterERAtoETH(0.0063);
+    //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
+    // await myZksync.sync_swap_any_to_any("0xA59af353E423F54D47F2Ce5F85e3e265d95282Cd","0x5aea5775959fbc2557cc8789bc1bf90a239d9a91","-1",5)
     // await myZksync.mint_dogera();
     //await myZksync.mint_DAO_NFT();
     //await myZksync.transferEthOnL2('0xCaeaC0f8061661b3eC4315E04219ABec67eDcbF4',-1)
-    // await myZksync.bridgeOrbiterERAtoETH(0.01);
+    //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     // await myZksync.revoke_usdc_on_syncswap();
     //await myZksync.sign_permit("0x80115c708E12eDd42E504c1cD52Aea96C547c05c", 1000000,7200);
     //await myZksync.deposit_All_funds_L1_to_L2();
