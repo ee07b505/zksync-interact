@@ -95,7 +95,8 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
+        //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
+        this.tasks=["Syncswap_Swap_CheemsPet_to_ETH"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -359,6 +360,39 @@ async Syncswap_Swap_Dogera_to_ETH(){
 
 
 }
+
+
+
+async Syncswap_Swap_CheemsPet_to_ETH(){
+
+    console.log(`[${this.Num}][${this.name}] Syncswap_Swap_CheemsPet_to_ETH is running...`);
+    let Hash
+    try {
+    const cheemsPet_ADDRESS = '0xd599dA85F8Fc4877e61f547dFAcffe1238A7149E'
+    const TOKEN =new Contract(cheemsPet_ADDRESS,erc20Abi,this.signer)
+    const tokenDecimal= await TOKEN.decimals()
+    const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(this.signer.address);
+    const TOKENBalance =   Number(
+        ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
+    );
+    if (TOKENBalance<1000){
+        console.log(`[${this.name}] do not have CheemsPet`)
+         Hash ='NoCheemsPet'
+        await this.completeTask(1, Hash);
+        return "NoCheemsPet"
+    }
+    Hash = await this.sync_swap_any_to_any(cheemsPet_ADDRESS,wETH_ADDRESS,"-1",15)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_CheemsPet_to_ETH: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+
+}
  async Zklite_ActivateAccounts_MintNFT_TransferToOkx(){
 
     console.log(`[${this.Num}][${this.name}] Zklite_ActivateAccounts_MintNFT_TransferToOkx is running...`);
@@ -378,21 +412,42 @@ async Syncswap_Swap_Dogera_to_ETH(){
  }
 
 
+ async Mint_CheemsPet_Coin(){
+
+    console.log(`[${this.Num}][${this.name}] Mint_CheemsPet_Coin is running...`);
+    let Hash
+    try {
+
+    Hash = await this.mint_cheems_pet()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_CheemsPet_Coin: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+
+
 
     getNextTask() {
         const remainingTasks = this.getRemainingTasks();
+        const remainingRandomTasks = this.getRemainingTasks();
+
         //if (remainingTasks.length === 7) {
         //    return 'deposit_All_funds_L1_to_L2';
         //}
         //if (remainingTasks.length === 2) {
         //    return 'Swap_Usdc_to_Target_On_Syncswap';
         //}
-        if (remainingTasks.length === 1) {
-           return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
-        }
-        const remainingRandomTasks = remainingTasks.filter(
-           task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
-        );
+        // if (remainingTasks.length === 1) {
+        //    return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
+        // }
+        // const remainingRandomTasks = remainingTasks.filter(
+        //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
+        // );
         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
         return remainingRandomTasks[randomIndex];
     }
@@ -1485,6 +1540,7 @@ async mint_cheems_pet(){
             if (response.data.data === null) {
               // 如果 data 返回为 null，则输出 "has claimed"
               console.log("NoQulified");
+              return "NoQulified";
             } else {
               // 如果 data 返回有值，则分别输出 signature 和 timestamp
               let signature = response.data.data.signature;
@@ -1500,7 +1556,7 @@ async mint_cheems_pet(){
             }
             let gasLimit = await cheemsContract.estimateGas.claim(signature.toString(), timestamp)
             console.log("gasEsitmate",gasLimit.toString())
-            gasLimit = Math.floor(+gasLimit.toString() * 0.5);
+            gasLimit = Math.floor(+gasLimit.toString() * 0.4);
             console.log("gasLimit",gasLimit)
             const tx = await cheemsContract.claim(signature.toString(), timestamp, {gasLimit})
             console.log(" - Tx submitted for claim on wallet: ", this.signer.address, ", hash (ETH)" , tx.hash, " - ")
@@ -1790,7 +1846,6 @@ async zklite_interact (toAddress)  {
       console.log(error);
       }
   }
-
 
 
 
