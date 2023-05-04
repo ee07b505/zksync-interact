@@ -1803,11 +1803,11 @@ async zklite_interact (toAddress)  {
 
 (async () => {
 
-    console.log("Now is ", VERSION, " verison")
-    console.log("Now is ", VERSION, " verison")
-    console.log("Now is ", VERSION, " verison")
-    const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
-    await myZksync.mint_cheems_pet();
+    // console.log("Now is ", VERSION, " verison")
+    // console.log("Now is ", VERSION, " verison")
+    // console.log("Now is ", VERSION, " verison")
+    // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
+    // await myZksync.mint_cheems_pet();
     //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
     // await myZksync.sync_swap_any_to_any("0xA59af353E423F54D47F2Ce5F85e3e265d95282Cd","0x5aea5775959fbc2557cc8789bc1bf90a239d9a91","-1",5)
