@@ -1,5 +1,6 @@
 'use strict';
 const  {readCsvFile} =require("./account/encrypto")
+const axios = require("axios");
 const  ethers = require("ethers");
 const utils = require("./utils/zklite");
 const zklite = require("zksync");
@@ -48,7 +49,6 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
 const zk_provider = new zksync.Provider(ZK_RPC_URL);
-var web3 = new Web3(ZK_RPC_URL);
 
 
 
@@ -1459,6 +1459,65 @@ async Syncswap_Swap_Dogera_to_ETH(){
         
 }
 
+async mint_cheems_pet(){
+    //https://cheems.pet/
+
+    try {
+        const cheemsABI = [{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_symbol","type":"string"},{"internalType":"uint256","name":"_maxSupply","type":"uint256"},{"internalType":"uint256","name":"_claimAmount","type":"uint256"},{"internalType":"uint256","name":"_maxClaimCount","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes","name":"signature","type":"bytes"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"claim","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimCount","outputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimDisable","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimEnable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimEnd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimFull","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_timestamp","type":"uint256"}],"name":"claimStart","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimStartTimestamp","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimed","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"subtractedValue","type":"uint256"}],"name":"decreaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"addedValue","type":"uint256"}],"name":"increaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"maxClaimCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"rewardManager","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"setClaimAmount","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"setMaxClaimCount","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"","type":"function"}]
+        const apiUrl = "https://api.cheems.pet/api/claim";
+        const contractAddress='0xd599dA85F8Fc4877e61f547dFAcffe1238A7149E'
+        const walletAddress = this.address;
+            const response = await axios({
+              method: "POST",
+              url: apiUrl,
+              headers: {
+                accept: "*/*",
+                "accept-language": "zh-CN,zh;q=0.9",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-site",
+                addr: walletAddress,
+              },
+              referrer: "https://cheems.pet/",
+              referrerPolicy: "strict-origin-when-cross-origin",
+            });
+        
+            if (response.data.data === null) {
+              // 如果 data 返回为 null，则输出 "has claimed"
+              console.log("NoQulified");
+            } else {
+              // 如果 data 返回有值，则分别输出 signature 和 timestamp
+              let signature = response.data.data.signature;
+              let timestamp = response.data.data.timestamp;
+              console.log("signature:", signature);
+              console.log("timestamp:", timestamp);
+            const cheemsContract = new zksync.Contract(contractAddress,cheemsABI, this.signer)
+            const status = await cheemsContract.claimed()
+            console.log("status",status)
+            if(status){
+                console.log("claim is not enable")
+                return 'HasClaimed'
+            }
+            let gasLimit = await cheemsContract.estimateGas.claim(signature.toString(), timestamp)
+            console.log("gasEsitmate",gasLimit.toString())
+            gasLimit = Math.floor(+gasLimit.toString() * 0.5);
+            console.log("gasLimit",gasLimit)
+            const tx = await cheemsContract.claim(signature.toString(), timestamp, {gasLimit})
+            console.log(" - Tx submitted for claim on wallet: ", this.signer.address, ", hash (ETH)" , tx.hash, " - ")
+            return tx.hash
+            }
+          } catch (error) {
+            console.error("Error in making request:", error);
+          }
+    
+}
+
+
+
+
+
+
+
     async mint_dogera(){
         try{
             const abi = [
@@ -1744,11 +1803,11 @@ async zklite_interact (toAddress)  {
 
 (async () => {
 
-    // console.log("Now is ", VERSION, " verison")
-    // console.log("Now is ", VERSION, " verison")
-    // console.log("Now is ", VERSION, " verison")
-    // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY);
-    // await myZksync.Syncswap_Swap_Dogera_to_ETH();
+    console.log("Now is ", VERSION, " verison")
+    console.log("Now is ", VERSION, " verison")
+    console.log("Now is ", VERSION, " verison")
+    const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
+    await myZksync.mint_cheems_pet();
     //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
     // await myZksync.sync_swap_any_to_any("0xA59af353E423F54D47F2Ce5F85e3e265d95282Cd","0x5aea5775959fbc2557cc8789bc1bf90a239d9a91","-1",5)
