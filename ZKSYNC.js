@@ -519,7 +519,9 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
 
 
     getRemainingTasks() {
-        return this.tasks.filter((_, i) => !this.completedTasks[i]);
+        const remainingTasks= this.tasks.filter((_, i) => !this.completedTasks[i]);
+        console.log(`[${this.name}] Remaining tasks: ${remainingTasks}`);
+        return remainingTasks;
     }
 
 
@@ -1846,6 +1848,29 @@ async zklite_interact (toAddress)  {
       console.log(error);
       }
   }
+  async mint_zkducks(amount){
+    const ABI = [{"inputs":[{"internalType":"uint256","name":"_quantity","type":"uint256"}],"name":"claimZkDucks","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"claimZkDucksByNFTHolder","outputs":[],"stateMutability":"payable","type":"function"},]
+    const contractAddress ='0x9c2274cdDed274F57583c1433Cfe90B7548c8F06'
+    const mint_zkducks_contract = new zksync.Contract(contractAddress, ABI, this.signer)
+    const value = amount>1?BigNumber.from(amount-1).mul(ethers.utils.parseEther('0.0006')):0
+    console.log(value.toString())
+     let gasLimit = await mint_zkducks_contract.estimateGas.claimZkDucks(amount,{value})
+     console.log(gasLimit.toString())
+    
+     gasLimit = Math.floor(+gasLimit.toString() * 0.4);
+    
+     const mint_zkducks = await mint_zkducks_contract.claimZkDucks(amount,{value,gasLimit})
+    
+     console.log("Minting ZKDUCKS on wallet ",this.address,", hash: ", mint_zkducks.hash)
+     const wait = await mint_zkducks.wait();
+     console.log("Minting ZKDUCKS on wallet ",this.address," included, gas used: ", wait.gasUsed.toString())
+     return mint_zkducks.hash
+
+    
+    }
+    
+
+
 
 
 
