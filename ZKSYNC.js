@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Syncswap_Swap_CheemsPet_to_ETH"]
+        this.tasks=["Mint_ZKDUCKS_Coin"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -430,6 +430,25 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
 
  }
 
+
+ async Mint_ZKDUCKS_Coin(){
+
+    console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin is running...`);
+    let Hash
+    try {
+
+    Hash = await this.mint_zkducts(10)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+ 
 
 
     getNextTask() {
@@ -1847,6 +1866,30 @@ async zklite_interact (toAddress)  {
       }
   }
 
+  async mint_zkducts(amount){
+    try {
+        const ABI =[{"inputs":[{"internalType":"uint256","name":"_quantity","type":"uint256"}],"name":"claimZkDucks","outputs":[],"stateMutability":"payable","type":"function"},]
+        const zkductsAddress = '0x9c2274cdDed274F57583c1433Cfe90B7548c8F06'
+        const zkductsContract = new ethers.Contract(zkductsAddress, ABI, this.signer);
+        const value = amount>1?BigNumber.from(ethers.utils.parseEther("0.0006")).mul(amount-1):BigNumber.from(0);
+        const gasEstimate = await zkductsContract.estimateGas.claimZkDucks(amount, {value});
+        console.log("gasLimit estimate is",gasEstimate);
+        const gasLimit = Math.floor(+gasEstimate.toString() * 0.33);
+        console.log("gasLimit is",gasLimit);
+        const response = await zkductsContract.claimZkDucks(amount, {value, gasLimit});
+        console.log("Mint submitted from on wallet ",this.address,", hash: ", response.hash)
+        const wait = await response.wait();
+        console.log("Mint on wallet ",this.address," included, gas used: ", wait.gasUsed.toString())
+        return response.hash
+    } catch (error) {
+        console.log(error);
+    }
+
+
+
+
+  }
+
 
 
 
@@ -1862,6 +1905,7 @@ async zklite_interact (toAddress)  {
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
+    // await myZksync.mint_zkducts(1);
     // await myZksync.mint_cheems_pet();
     //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
