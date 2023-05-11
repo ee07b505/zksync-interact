@@ -9,7 +9,7 @@ const { defaultAbiCoder } = ethers.utils;
 const zksync  = require("zksync-web3");
 const fs = require("fs");
 const Buffer = require('buffer').Buffer;
-//const config = JSON.parse(fs.readFileSync("configTestnet.json", "utf-8"));
+// const config = JSON.parse(fs.readFileSync("configTestnet.json", "utf-8"));
 const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 const util = require('util');
 var Web3 = require('web3');
@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Syncswap_Swap_CheemsPet_to_ETH"]
+        this.tasks=["Mint_ZKAPES_Coin"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -390,35 +390,51 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
     }
     await this.completeTask(1, Hash);
 }
-async Syncswap_Swap_ZKDC_to_ETH(){
+async Syncswap_Swap_ZKAPES_to_ETH(){
 
-    console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKDC_to_ETH is running...`);
+    console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKAPES_to_ETH is running...`);
     let Hash
     try {
-    const cheemsPet_ADDRESS = '0xe2c55af390a0f82dd3FE29d6B31Df2f756f7deCD'
+    const cheemsPet_ADDRESS = '0x9aA48260Dc222Ca19bdD1E964857f6a2015f4078'
     const TOKEN =new Contract(cheemsPet_ADDRESS,erc20Abi,this.signer)
     const tokenDecimal= await TOKEN.decimals()
     const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(this.signer.address);
     const TOKENBalance =   Number(
         ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
     );
-    if (TOKENBalance<10625000000){
-        console.log(`[${this.name}] do not have enough ZKDC`)
-         Hash ='NoZKDC'
+    if (TOKENBalance<11975012){
+        console.log(`[${this.name}] do not have enough ZKAPES`)
+         Hash ='NoZKAPES'
         await this.completeTask(1, Hash);
-        return "NoZKDC"
+        return "NoZKAPES"
     }
     Hash = await this.sync_swap_any_to_any(cheemsPet_ADDRESS,wETH_ADDRESS,"-1",10)
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
-        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKDC_to_ETH: ${error}`);
+        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKAPES_to_ETH: ${error}`);
         this.failTask(1, error)
         return;
     }
     await this.completeTask(1, Hash);
 }
 
+async Mint_ZKAPES_Coin(){
 
+    console.log(`[${this.Num}][${this.name}] Mint_ZKAPES_Coin is running...`);
+    let Hash
+    try {
+
+    Hash = await this.mint_zkapes()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_ZKAPES_Coin: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
 
 
 
@@ -445,23 +461,7 @@ async Syncswap_Swap_ZKDC_to_ETH(){
  }
 
 
- async Mint_CheemsPet_Coin(){
-
-    console.log(`[${this.Num}][${this.name}] Mint_CheemsPet_Coin is running...`);
-    let Hash
-    try {
-
-    Hash = await this.mint_cheems_pet()
-    console.log(`https://explorer.zksync.io/tx/${Hash} `)
-    } catch (error) {
-        console.log(`[${this.Num}][${this.name}] Mint_CheemsPet_Coin: ${error}`);
-        this.failTask(1, error)
-        return;
-    }
-    await this.completeTask(1, Hash);
-
-
- }
+ 
 
 
  async Transfer_Half_Balance_To_Another_Account(){
@@ -751,7 +751,7 @@ async Syncswap_Swap_ZKDC_to_ETH(){
                 let needed = BigNumber.from(gas_estimate).mul(zk_gas).add(value)
                 balance_enough = zk_balance.gte(needed)
                 if (!balance_enough) {
-                    console.log(" - Not enough Balance on wallet ",era_wallet.address," to send transaction for ERA to ETH bridge, waiting 5 seconds... - ")
+                    console.log(" - Not enough Balance on wallet ",this.address," to send transaction... - ")
                     await sleep(5);
                 }
             }        
@@ -761,6 +761,7 @@ async Syncswap_Swap_ZKDC_to_ETH(){
             to: formattedAddress,
             token: zksync.utils.ETH_ADDRESS,
             amount: value,
+            gasLimit:gas_estimate*0.7,
         }
 
         await checkETHBalances(this.signer,formattedAddress)
@@ -776,6 +777,61 @@ async Syncswap_Swap_ZKDC_to_ETH(){
         // );
         // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
         // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+    }
+    catch (e) {
+        console.log(e)
+
+    }
+}
+
+
+async transferErc20OnL2(address, amountInEther,tokenAddress ) {
+    try {
+        const formattedAddress = ethers.utils.getAddress(address);
+
+        let balance_enough = false;
+        let value = 0;
+        let zk_gas = await zk_provider.getGasPrice()
+        let zk_balance = await this.signer.getBalance(tokenAddress)
+        let gas_estimate = await zk_provider.estimateGas({
+            from: this.signer.address,
+            token: tokenAddress,
+            to: formattedAddress,
+        })
+        console.log("gas estimate is",gas_estimate.toString())
+        const tokenContract = new Contract(tokenAddress,erc20Abi,zk_provider)
+        const decimals = await tokenContract.decimals()
+        console.log("decimals is",decimals)
+        console.log("转化为ether单位的余额是",ethers.utils.formatUnits(zk_balance.toString(),decimals))
+            if (amountInEther == -1){
+                value = zk_balance; //May have rounding eerror stuffs here...check again
+                console.log("value is",value.toString())
+                balance_enough = 1
+            }
+            else{
+                value = ethers.utils.parseUnits(amountInEther.toString(),decimals)
+                balance_enough = zk_balance.gte(value)
+                if (!balance_enough) {
+                    console.log(" - Not enough Balance on wallet ",this.address," to send transaction... - ")
+                    return "Not enough Balance on wallet"
+                }
+            }        
+        
+
+        const tx = {
+            to: formattedAddress,
+            token: tokenAddress,
+            gasLimit:gas_estimate*0.7,
+            amount: value,
+        }
+
+        await checkERC20Balances(this.signer,tokenAddress)
+        const transfer = await this.signer.transfer(tx);
+        console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
+        await checkERC20Balances(this.signer,tokenAddress)
+
+        return transfer.hash;
+
     }
     catch (e) {
         console.log(e)
@@ -1931,17 +1987,58 @@ async zklite_interact (toAddress)  {
 
   async mint_zkapes(){
 
-    const abis = ['function claim(address, uint256, uint256, uint256, uint8, bytes32, bytes32)']
-
+    const abis = [
+    {
+        inputs: [{
+            name: "_owner",
+            type: "address"
+        }, {
+            name: "_value",
+            type: "uint256"
+        }, {
+            name: "_nonce",
+            type: "uint256"
+        }, {
+            name: "_deadline",
+            type: "uint256"
+        }, {
+            name: "_v",
+            type: "uint8"
+        }, {
+            name: "_r",
+            type: "bytes32"
+        }, {
+            name: "_s",
+            type: "bytes32"
+        }],
+        name: "claim",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function"
+    },
+    {
+        inputs: [{
+            name: "arg0",
+            type: "address"
+        }],
+        name: "claimed",
+        outputs: [{
+            name: "",
+            type: "bool"
+        }],
+        stateMutability: "view",
+        type: "function"
+    }]
       while (true) {
         try {
           const { data } = await axios.post('https://zksync-ape-apis.zkape.io/airdrop/index/getcertificate', {
             address: this.address,
           })
-          if (data.Code === 400) break;
+          if (data.Code === 400) return "noZPT";
           if (data.Code === 200 && data.Data) {
             const airdrop = new ethers.Contract('0x9aA48260Dc222Ca19bdD1E964857f6a2015f4078', abis, this.signer);
             console.log(data.Data)
+            if(airdrop.claimed(this.address)){  console.log("Already claimed"); return "Alreadyclaimed"}
             const gasLimit = await airdrop.estimateGas.claim(
               data.Data.owner,
               ethers.BigNumber.from(data.Data.value),
@@ -1996,7 +2093,9 @@ async zklite_interact (toAddress)  {
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
-    // await myZksync.mint_zkapes();
+    // //await myZksync.transferErc20OnL2('0xB3E4F411309C20E6c3a048705803D415F905B72A',0.2,'0x9D29342309534095AC442fE5D255b3252aa770b5');
+    // //await myZksync.transferEthOnL2('0xB3E4F411309C20E6c3a048705803D415F905B72A',-1);
+    //  await myZksync.mint_zkapes();
     // await myZksync.mint_cheems_pet();
     //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
