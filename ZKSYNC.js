@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Syncswap_Swap_ZKDC_to_ETH"]
+        this.tasks=["Syncswap_Swap_CheemsPet_to_ETH"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -464,16 +464,18 @@ async Syncswap_Swap_ZKDC_to_ETH(){
  }
 
 
- async Mint_ZKDUCKS_Coin(){
+ async Transfer_Half_Balance_To_Another_Account(){
 
-    console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin is running...`);
+    console.log(`[${this.Num}][${this.name}] Transfer_Half_Balance_To_Another_Account is running...`);
     let Hash
     try {
-
-    Hash = await this.mint_zkducts(10)
+    const amountPercent  = generateRandomAmount(45,55,0)
+    const balance = this.signer.getBalance();
+    const amountETH = balance.div(ethers.BigNumber.from(100)).mul(amountPercent)
+    Hash = await this.transferEthOnL2(this.okxAddress,amountETH)
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
-        console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin: ${error}`);
+        console.log(`[${this.Num}][${this.name}] Transfer_Half_Balance_To_Another_Account: ${error}`);
         this.failTask(1, error)
         return;
     }
@@ -481,7 +483,7 @@ async Syncswap_Swap_ZKDC_to_ETH(){
 
 
  }
- 
+
 
 
     getNextTask() {
@@ -1820,7 +1822,7 @@ async mint_cheems_pet(){
     console.log("Swap submitted from on wallet ",this.address,", hash: ", response.hash)
     const wait = await response.wait();
     console.log("Swap on wallet ",this.address," included, gas used: ", wait.gasUsed.toString()) 
-    //await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
+    await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
     return response.hash 
 }
 
