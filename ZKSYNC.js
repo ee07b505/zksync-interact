@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Syncswap_Swap_CheemsPet_to_ETH"]
+        this.tasks=["Syncswap_Swap_ZKDC_to_ETH"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -389,10 +389,43 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
         return;
     }
     await this.completeTask(1, Hash);
-
-
-
 }
+async Syncswap_Swap_ZKDC_to_ETH(){
+
+    console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKDC_to_ETH is running...`);
+    let Hash
+    try {
+    const cheemsPet_ADDRESS = '0xe2c55af390a0f82dd3FE29d6B31Df2f756f7deCD'
+    const TOKEN =new Contract(cheemsPet_ADDRESS,erc20Abi,this.signer)
+    const tokenDecimal= await TOKEN.decimals()
+    const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(this.signer.address);
+    const TOKENBalance =   Number(
+        ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
+    );
+    if (TOKENBalance<10625000000){
+        console.log(`[${this.name}] do not have enough ZKDC`)
+         Hash ='NoZKDC'
+        await this.completeTask(1, Hash);
+        return "NoZKDC"
+    }
+    Hash = await this.sync_swap_any_to_any(cheemsPet_ADDRESS,wETH_ADDRESS,"-1",10)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKDC_to_ETH: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+}
+
+
+
+
+
+
+
+
+
  async Zklite_ActivateAccounts_MintNFT_TransferToOkx(){
 
     console.log(`[${this.Num}][${this.name}] Zklite_ActivateAccounts_MintNFT_TransferToOkx is running...`);
@@ -430,6 +463,25 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
 
  }
 
+
+ async Mint_ZKDUCKS_Coin(){
+
+    console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin is running...`);
+    let Hash
+    try {
+
+    Hash = await this.mint_zkducts(10)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_ZKDUCKS_Coin: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+ 
 
 
     getNextTask() {
@@ -1412,7 +1464,7 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
         // 估算gas
         const gasEstimate = await tokenContract.estimateGas.approve(routerAddress, 0);
         console.log("Revoke Token Approval of gas estimate:", gasEstimate.toString());
-    
+        const gasLimit = gasEstimate.mul(70).div(100);
         try {
           // 查询授权数量
           const allowance = await tokenContract.allowance(this.signer.address, routerAddress);
@@ -1424,7 +1476,7 @@ async Syncswap_Swap_CheemsPet_to_ETH(){
 
     
           // 发送交易
-          const tx = await tokenContract.approve(routerAddress, 0);
+          const tx = await tokenContract.approve(routerAddress, 0,{gasLimit:gasLimit});
           console.log("Transaction submitted:", tx.hash);
     
           // 等待交易确认
@@ -1725,7 +1777,10 @@ async mint_cheems_pet(){
 
         if (allowance.eq(0)) {
             console.log("Not authorized, approving...");
-            const approveTx = await token_in_contract.connect(this.signer).approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
+            const gasEsitmate = await token_in_contract.connect(this.signer).estimateGas.approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
+            console.log("gasLimit estimate is",gasEsitmate)
+            const gasLimit = Math.floor(+gasEsitmate.toString() * 0.7);
+            const approveTx = await token_in_contract.connect(this.signer).approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256,{gasLimit});
             await approveTx.wait();
             console.log(`Transaction approved: ${approveTx.hash}`);
         }
@@ -1747,8 +1802,8 @@ async mint_cheems_pet(){
     );
 
     console.log("gasLimit estimate is",gasEstimate);
-    // const gasLimit = Math.floor(+gasEstimate.toString() * 0.7);
-    // console.log("gasLimit is",gasLimit);
+    const gasLimit = Math.floor(+gasEstimate.toString() * 0.5);
+    console.log("gasLimit is",gasLimit);
 
     const response = await router.swap(
         paths, // paths
@@ -1757,7 +1812,7 @@ async mint_cheems_pet(){
         {
             // value: (token_in==ZERO_ADDRESS)?value:BigNumber.from(0), //Anomaly
             value: (token_in==wETH)?value:BigNumber.from(0),
-            gasLimit: BigNumber.from("4300000"),
+            gasLimit: gasLimit,
             gasPrice: era_gasPrice,
         },
     );
@@ -1765,7 +1820,7 @@ async mint_cheems_pet(){
     console.log("Swap submitted from on wallet ",this.address,", hash: ", response.hash)
     const wait = await response.wait();
     console.log("Swap on wallet ",this.address," included, gas used: ", wait.gasUsed.toString()) 
-    await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
+    //await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
     return response.hash 
 }
 
@@ -1872,6 +1927,58 @@ async zklite_interact (toAddress)  {
 
 
 
+  async mint_zkapes(){
+
+    const abis = ['function claim(address, uint256, uint256, uint256, uint8, bytes32, bytes32)']
+
+      while (true) {
+        try {
+          const { data } = await axios.post('https://zksync-ape-apis.zkape.io/airdrop/index/getcertificate', {
+            address: this.address,
+          })
+          if (data.Code === 400) break;
+          if (data.Code === 200 && data.Data) {
+            const airdrop = new ethers.Contract('0x9aA48260Dc222Ca19bdD1E964857f6a2015f4078', abis, this.signer);
+            console.log(data.Data)
+            const gasLimit = await airdrop.estimateGas.claim(
+              data.Data.owner,
+              ethers.BigNumber.from(data.Data.value),
+              ethers.BigNumber.from(data.Data.nonce),
+              ethers.BigNumber.from(data.Data.deadline),
+              data.Data.v,
+              data.Data.r,
+              data.Data.s
+            )
+            const gasPrice = await zk_provider.getGasPrice();
+            const tx = await airdrop.claim(
+              data.Data.owner,
+              ethers.BigNumber.from(data.Data.value),
+              ethers.BigNumber.from(data.Data.nonce),
+              data.Data.deadline,
+              data.Data.v,
+              data.Data.r,
+              data.Data.s, {
+              gasPrice,
+              gasLimit: Math.floor(gasLimit.toNumber() * 0.35)
+            }
+            )
+             await tx.wait()
+             console.log(tx.hash)
+             return tx.hash
+          }
+        } catch (error) {
+          if (axios.isAxiosError(error)) {
+            console.log(error.response?.data)
+          }
+        }
+      
+    }
+
+
+
+
+  }
+
 
 
 
@@ -1887,6 +1994,7 @@ async zklite_interact (toAddress)  {
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
+    // await myZksync.mint_zkapes();
     // await myZksync.mint_cheems_pet();
     //await myZksync.bridgeOrbiterERAtoETH(0.0063);
     //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
