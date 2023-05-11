@@ -42,12 +42,12 @@ async function ethAccount(fileName="keys.csv") {
 	for (let Num = 0; Num < records.length; Num++) {
 	  const record = records[Num];
 	  const unlockedKey = unlockPrivateKey(record.encryptedPrivateKey, password);
-    const OkxAdress = record.okxAddress;
+    const OkxAdress = record.okxAddress.trim();
 	  unlockedKeys.push({ Num, OkxAdress, ...unlockedKey });
 
 	}
+
 	return unlockedKeys
-  
   
 
 
@@ -138,14 +138,15 @@ async function main() {
   const encryptedKeys = await generateKeysAndEncrypt(numKeys, password);
 
   // 写入CSV文件
-   await writeEncryptedToCsvFile('keys.csv', encryptedKeys);
+   await writeEncryptedToCsvFile('keys2.csv', encryptedKeys);
 
   console.log('Keys generated and written to CSV file.');
 }
 
 if (require.main === module) {
     //console.log(ethAccount2('keys.csv', 'account.csv'));
-    ethAccount2('encrypted_keys.csv', 'account2.csv');
+    // ethAccount2('encrypted_keys.csv', 'account2.csv');
     //encryptEthPrivateKeyToCSV('account.csv', 'encrypted_keys.csv');
+    //main();
 }
 module.exports = { ethAccount,readCsvFile };
