@@ -58,11 +58,11 @@ async function checkETHBalances(signer,address=null) {
     console.log("The balance of", balanceAddress," ETH is :",ethers.utils.formatEther(balance));
     return balance;
 }
-async function checkERC20Balances(signer,tokenAddress) {
-
+async function checkERC20Balances(signer,tokenAddress,address=null) {
+    const balanceAddress = address ? address : signer.address;
     const TOKEN =new Contract(tokenAddress,erc20Abi,signer)
     const tokenDecimal= await TOKEN.decimals()
-    const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(signer.address);
+    const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(balanceAddress);
     const TOKENBalance = Number(
         ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
     );
@@ -96,11 +96,32 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Mint_ZKAPES_Coin"]
+        this.tasks=["Mint_NFT_On_Mintsquare",'Syncswap_Swap_ZKAPES_to_ETH']
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
     } 
+
+
+    getNextTask() {
+        const remainingTasks = this.getRemainingTasks();
+        const remainingRandomTasks = this.getRemainingTasks();
+
+        //if (remainingTasks.length === 7) {
+        //    return 'deposit_All_funds_L1_to_L2';
+        //}
+        //if (remainingTasks.length === 2) {
+        //    return 'Swap_Usdc_to_Target_On_Syncswap';
+        //}
+        // if (remainingTasks.length === 1) {
+        //    return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
+        // }
+        // const remainingRandomTasks = remainingTasks.filter(
+        //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
+        // );
+        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+        return remainingRandomTasks[randomIndex];
+    }
 
     async deposit_All_funds_L1_to_L2() {
         console.log(`[${this.Num}][${this.name}] deposit_All_funds_L1_to_L2 is running...`);
@@ -182,11 +203,11 @@ class ZKSYNC {
              console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Error Mint_NFT_On_Mintsquare: ${error}`);
-            this.failTask(5, error)
+            this.failTask(1, error)
             return;
         }
 
-        await this.completeTask(5, Hash);
+        await this.completeTask(1, Hash);
 
 
     }
@@ -395,7 +416,7 @@ async Syncswap_Swap_ZKAPES_to_ETH(){
     console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKAPES_to_ETH is running...`);
     let Hash
     try {
-    const cheemsPet_ADDRESS = '0x9aA48260Dc222Ca19bdD1E964857f6a2015f4078'
+    const cheemsPet_ADDRESS = '0x47EF4A5641992A72CFd57b9406c9D9cefEE8e0C4'
     const TOKEN =new Contract(cheemsPet_ADDRESS,erc20Abi,this.signer)
     const tokenDecimal= await TOKEN.decimals()
     const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(this.signer.address);
@@ -412,10 +433,10 @@ async Syncswap_Swap_ZKAPES_to_ETH(){
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] Syncswap_Swap_ZKAPES_to_ETH: ${error}`);
-        this.failTask(1, error)
+        this.failTask(2, error)
         return;
     }
-    await this.completeTask(1, Hash);
+    await this.completeTask(2, Hash);
 }
 
 async Mint_ZKAPES_Coin(){
@@ -466,16 +487,18 @@ async Mint_ZKAPES_Coin(){
 
  async Transfer_Half_Balance_To_Another_Account(){
 
-    console.log(`[${this.Num}][${this.name}] Transfer_Half_Balance_To_Another_Account is running...`);
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_Half_Balance_To_Another_Account is running...`);
     let Hash
     try {
     const amountPercent  = generateRandomAmount(45,55,0)
-    const balance = this.signer.getBalance();
-    const amountETH = balance.div(ethers.BigNumber.from(100)).mul(amountPercent)
+    const balance= await zk_provider.getBalance(this.signer.address)
+    const ETHinWei = balance.mul(amountPercent.toString()).div(100)
+    const amountETH = ethers.utils.formatEther(ETHinWei)
+    console.log(`[${this.name}] amountETH: ${amountETH}`)
     Hash = await this.transferEthOnL2(this.okxAddress,amountETH)
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
-        console.log(`[${this.Num}][${this.name}] Transfer_Half_Balance_To_Another_Account: ${error}`);
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_Half_Balance_To_Another_Account: ${error}`);
         this.failTask(1, error)
         return;
     }
@@ -485,26 +508,27 @@ async Mint_ZKAPES_Coin(){
  }
 
 
+ async Transfer_All_ZKAPE_To_Another_Account(){
 
-    getNextTask() {
-        const remainingTasks = this.getRemainingTasks();
-        const remainingRandomTasks = this.getRemainingTasks();
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_All_ZKAPE_To_Another_Account is running...`);
+    let Hash
+    try {
 
-        //if (remainingTasks.length === 7) {
-        //    return 'deposit_All_funds_L1_to_L2';
-        //}
-        //if (remainingTasks.length === 2) {
-        //    return 'Swap_Usdc_to_Target_On_Syncswap';
-        //}
-        // if (remainingTasks.length === 1) {
-        //    return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
-        // }
-        // const remainingRandomTasks = remainingTasks.filter(
-        //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
-        // );
-        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
-        return remainingRandomTasks[randomIndex];
+    Hash = await this.transferErc20OnL2(this.okxAddress,-1,'0x47EF4A5641992A72CFd57b9406c9D9cefEE8e0C4')
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_All_ZKAPE_To_Another_Account: ${error}`);
+        this.failTask(2, error)
+        return;
     }
+    await this.completeTask(2, Hash);
+
+
+ }
+
+
+
+
 
     async completeTask(taskNumber, transaction_hash) {
         const taskName = this.tasks[taskNumber - 1];
@@ -574,7 +598,6 @@ async Mint_ZKAPES_Coin(){
 
     getRemainingTasks() {
         const remainingTasks= this.tasks.filter((_, i) => !this.completedTasks[i]);
-        console.log(`[${this.name}] Remaining tasks: ${remainingTasks}`);
         return remainingTasks;
     }
 
@@ -788,18 +811,17 @@ async Mint_ZKAPES_Coin(){
 async transferErc20OnL2(address, amountInEther,tokenAddress ) {
     try {
         const formattedAddress = ethers.utils.getAddress(address);
-
+        tokenAddress=ethers.utils.getAddress(tokenAddress)
         let balance_enough = false;
         let value = 0;
-        let zk_gas = await zk_provider.getGasPrice()
-        let zk_balance = await this.signer.getBalance(tokenAddress)
+        let zk_balance = await checkERC20Balances(this.signer,tokenAddress)
         let gas_estimate = await zk_provider.estimateGas({
             from: this.signer.address,
             token: tokenAddress,
             to: formattedAddress,
         })
         console.log("gas estimate is",gas_estimate.toString())
-        const tokenContract = new Contract(tokenAddress,erc20Abi,zk_provider)
+        const tokenContract = new Contract(ethers.utils.getAddress(tokenAddress),erc20Abi,zk_provider)
         const decimals = await tokenContract.decimals()
         console.log("decimals is",decimals)
         console.log("转化为ether单位的余额是",ethers.utils.formatUnits(zk_balance.toString(),decimals))
@@ -825,10 +847,10 @@ async transferErc20OnL2(address, amountInEther,tokenAddress ) {
             amount: value,
         }
 
-        await checkERC20Balances(this.signer,tokenAddress)
+        await checkERC20Balances(this.signer,tokenAddress,formattedAddress)
         const transfer = await this.signer.transfer(tx);
         console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
-        await checkERC20Balances(this.signer,tokenAddress)
+        await checkERC20Balances(this.signer,tokenAddress,formattedAddress)
 
         return transfer.hash;
 
@@ -1207,7 +1229,8 @@ async transferErc20OnL2(address, amountInEther,tokenAddress ) {
         }
         console.log(`Estimated gas: ${estimatedGas.toString()}`);
         // Call the mint function and wait for confirmation
-        const mintTx = await contract.mint(uri);
+        const gasLimit = Math.floor(+estimatedGas.toString() *0.5);
+        const mintTx = await contract.mint(uri,{gasLimit});
         await mintTx.wait();
         console.log("Minted NFT with URI:", uri);
         console.log(mintTx.hash)
@@ -2038,7 +2061,7 @@ async zklite_interact (toAddress)  {
           if (data.Code === 200 && data.Data) {
             const airdrop = new ethers.Contract('0x9aA48260Dc222Ca19bdD1E964857f6a2015f4078', abis, this.signer);
             console.log(data.Data)
-            if(airdrop.claimed(this.address)){  console.log("Already claimed"); return "Alreadyclaimed"}
+            //if(airdrop.claimed(this.address)){  console.log("Already claimed"); return "Alreadyclaimed"}
             const gasLimit = await airdrop.estimateGas.claim(
               data.Data.owner,
               ethers.BigNumber.from(data.Data.value),
@@ -2058,7 +2081,7 @@ async zklite_interact (toAddress)  {
               data.Data.r,
               data.Data.s, {
               gasPrice,
-              gasLimit: Math.floor(gasLimit.toNumber() * 0.35)
+              gasLimit: Math.floor(gasLimit.toNumber() * 0.4)
             }
             )
              await tx.wait()
@@ -2088,7 +2111,12 @@ async zklite_interact (toAddress)  {
 
 
 (async () => {
+    // const {ethAccount} =require("./account/encrypto")
 
+    // const accounts =  await ethAccount('keys2.csv');
+    // const { Num, OkxAdress,address, privateKey } = accounts[34];
+    // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.Mint_NFT_On_Mintsquare();
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")

@@ -23,7 +23,9 @@ async function main(){
     }).catch(error => {
         console.log("Error connecting to Zksync:", error);
     });
-    const accounts =  await ethAccount();
+    const fileName = 'keys2.csv';
+    console.log("Now is ",fileName," file")
+    const accounts =  await ethAccount(fileName);
     const projectManager = new ProjectManager(accounts);
     projectManager.start();
 }

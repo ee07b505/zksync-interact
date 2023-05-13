@@ -367,7 +367,8 @@ FodyWeavers.xsd
 ./Log/*
 ./json/*
 
-keys.csv
+
+*.csv
 .keys.csv
 .configMainnet.json
 .configTestnet.json

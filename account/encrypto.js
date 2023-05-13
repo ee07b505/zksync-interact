@@ -145,7 +145,7 @@ async function main() {
 
 if (require.main === module) {
     //console.log(ethAccount2('keys.csv', 'account.csv'));
-    // ethAccount2('encrypted_keys.csv', 'account2.csv');
+     ethAccount2('keys2.csv', 'account2.csv');
     //encryptEthPrivateKeyToCSV('account.csv', 'encrypted_keys.csv');
     //main();
 }

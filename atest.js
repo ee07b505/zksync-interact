@@ -49,19 +49,23 @@ const { Console } = require("console");
 const erc20Abi = JSON.parse(fs.readFileSync("./ABIs/Erc20ABI.json", "utf-8"));
 
 async function main(){
+  const {ethAccount} =require("./account/encrypto")
+
   const accounts =  await ethAccount();
-
-
-  const { Num, OkxAdress,address, privateKey } = accounts[34];
+  const { Num, OkxAdress,address, privateKey } = account;
   const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+  for (let account of accounts) {
+
   const cheemsPet_ADDRESS = '0xd599dA85F8Fc4877e61f547dFAcffe1238A7149E'
   const TOKEN =new Contract(cheemsPet_ADDRESS,erc20Abi,project.signer)
   const tokenDecimal= await TOKEN.decimals()
   const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(project.signer.address);
+  console.log(expandedWTOKENBalanceBefore.toString())
   console.log(ethers.utils.formatUnits(expandedWTOKENBalanceBefore,tokenDecimal))
-   if (expandedWTOKENBalanceBefore.gt("1000483484000000172377")){
+   if (expandedWTOKENBalanceBefore.gt("1083483484000000172377")){
       console.log(`[${project.name}]  have CheemsPet`)
   }
+}
 }
 
 main()
