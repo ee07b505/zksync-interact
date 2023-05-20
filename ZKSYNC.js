@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Mint_NFT_On_Mintsquare",'Syncswap_Swap_ZKAPES_to_ETH']
+        this.tasks=["Transfer_M4573RCH_ON_Ethereum_L1"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -527,6 +527,25 @@ async Mint_ZKAPES_Coin(){
  }
 
 
+ async Transfer_M4573RCH_ON_Ethereum_L1(){
+
+    //https://twitter.com/M4573RCH
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_M4573RCH_ON_Ethereum_L1 is running...`);
+    let Hash
+    try {
+
+    Hash = await this.transferEthOnL1("0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA",0)
+    console.log(`https://etherscan.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_M4573RCH_ON_Ethereum_L1: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+
 
 
 
@@ -807,6 +826,47 @@ async Mint_ZKAPES_Coin(){
     }
 }
 
+
+
+async transferEthOnL1(address, amountInEther ) {
+    try {
+        const formattedAddress = ethers.utils.getAddress(address);
+        const eth_gas = await eth_provider.getGasPrice()
+        const gas_estimate = await eth_provider.estimateGas({
+            from: this.L1wallet.address,
+            to: formattedAddress,
+        })
+        console.log("gas estimate is",gas_estimate.toString())
+        const gas_fee = BigNumber.from(gas_estimate).mul(eth_gas)
+        console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString())  )
+        let balance = await this.L1wallet.getBalance()
+        console.log("The balance of ETH on L1 is :",ethers.utils.formatEther(balance))
+        
+
+        const tx = {
+            gasPrice:eth_gas,
+            from: this.L1wallet.address,
+            to: formattedAddress,
+            value: amountInEther,
+            gasLimit:21000,
+        }
+        const transfer = await this.L1wallet.sendTransaction(tx);
+        balance = await this.L1wallet.getBalance()
+        console.log("The balance of ETH on L1 is :",ethers.utils.formatEther(balance))
+        return transfer.hash;
+        // const finalizedTxReceipt = await transfer.waitFinalize();
+        // console.log(finalizedTxReceipt);
+        // const finalizedEthBalance = await this.zk_provider.getBalance(
+        //     formattedAddress
+        // );
+        // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
+        // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+    }
+    catch (e) {
+        console.log(e)
+
+    }
+}
 
 async transferErc20OnL2(address, amountInEther,tokenAddress ) {
     try {
@@ -2113,9 +2173,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys2.csv');
-    // const { Num, OkxAdress,address, privateKey } = accounts[34];
+    // const accounts =  await ethAccount('keys.csv'); 
+
+    // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.transferEthOnL1('0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA',0);
     // await project.Mint_NFT_On_Mintsquare();
     // console.log("Now is ", VERSION, " verison")
     // console.log("Now is ", VERSION, " verison")
