@@ -96,7 +96,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Transfer_M4573RCH_ON_Ethereum_L1"]
+        this.tasks=["Transfer_OKX_ON_Ethereum_L1"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -533,6 +533,7 @@ async Mint_ZKAPES_Coin(){
     console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_M4573RCH_ON_Ethereum_L1 is running...`);
     let Hash
     try {
+    
 
     Hash = await this.transferEthOnL1("0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA",0)
     console.log(`https://etherscan.io/tx/${Hash} `)
@@ -546,6 +547,34 @@ async Mint_ZKAPES_Coin(){
 
  }
 
+
+ async Transfer_OKX_ON_Ethereum_L1(){
+
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_OKX_ON_Ethereum_L1 is running...`);
+    let Hash
+    try {
+    const balance= await this.eth_provider.getBalance(this.L1wallet.address)
+    console.log(`[${this.name}] balance: ${ethers.utils.formatEther(balance)}`)
+    //leave gas for transfer ,gasPrice*21000
+    const gasPrice = await this.eth_provider.getGasPrice()
+    const transfer_amount = balance.sub(gasPrice.mul(21000).mul(120).div(100))
+   
+    // convert to ether
+    const transfer_amount_ether = ethers.utils.formatEther(transfer_amount)
+    console.log(`[${this.name}] transfer_amount: ${transfer_amount_ether}`)
+    console.log(`[${this.name}] gasPrice: ${ethers.utils.formatUnits(gasPrice,'gwei')}`)
+    Hash = await this.transferEthOnL1(this.okxAddress,transfer_amount_ether)
+
+    console.log(`https://etherscan.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_OKX_ON_Ethereum_L1: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
 
 
 
@@ -847,7 +876,7 @@ async transferEthOnL1(address, amountInEther ) {
             gasPrice:eth_gas,
             from: this.L1wallet.address,
             to: formattedAddress,
-            value: amountInEther,
+            value: ethers.utils.parseEther(amountInEther.toString()),
             gasLimit:21000,
         }
         const transfer = await this.L1wallet.sendTransaction(tx);
