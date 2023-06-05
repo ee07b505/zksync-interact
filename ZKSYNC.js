@@ -14,6 +14,7 @@ const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 const util = require('util');
 var Web3 = require('web3');
 const {round_down_up_fromback,sleep,generateRandomAmount} = require("./utils/utils.js");
+const { Console } = require("console");
 
 const {
     VERSION,
@@ -96,7 +97,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Transfer_OKX_ON_Ethereum_L1"]
+        this.tasks=["Interact_Self_Built_Contract"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -575,6 +576,21 @@ async Mint_ZKAPES_Coin(){
 
 
  }
+
+ async Interact_Self_Built_Contract(){
+ 
+    console.log(`[${this.Num}][${this.name}]Interact_Self_Built_Contract is running...`);
+    let Hash
+    try {
+    Hash = await this.interactSelfBuiltContract()
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Interact_Self_Built_Contract: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+}
 
 
 
@@ -2190,6 +2206,27 @@ async zklite_interact (toAddress)  {
 
   }
 
+  async interactSelfBuiltContract(){
+    const contractList = fs.readFileSync('./ABIs/self_build_contract.txt', 'utf8').split("\n");
+    const randomIndex = Math.floor(Math.random() * contractList.length);
+    const randomContractAddress = contractList[randomIndex].trim();
+    const functionList = ['0x4e71d92d', '0x1249c58b', '0x44df8e70', '0xd336c82d', '0x8119c065'];
+    const randomFunctionIndex = Math.floor(Math.random() * functionList.length);
+    const randomFunctionID = functionList[randomFunctionIndex];
+    const payload = {   
+        to: randomContractAddress,
+        data:randomFunctionID
+    }
+    const gasLimit =await this.signer.estimateGas(payload)
+    console.log(gasLimit.toString())
+    console.log("Interacting with contract ", randomContractAddress,"Interacting with randomFunctionID" ,randomFunctionID," on wallet ", this.address)
+    const gasPrice = await zk_provider.getGasPrice();
+    const tx = await this.signer.sendTransaction(payload,{gasPrice:gasPrice.add(ethers.utils.parseUnits('0.01', 'gwei')),gasLimit:Math.floor(gasLimit.toNumber() * 0.01)})
+    console.log(`https://explorer.zksync.io/tx/${tx.hash}`)
+    return tx.hash
+
+  }
+
 
 
 
@@ -2202,10 +2239,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys.csv'); 
+    // const accounts =  await ethAccount('keys2.csv'); 
 
     // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.interactSelfBuiltContract();
     // await project.transferEthOnL1('0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA',0);
     // await project.Mint_NFT_On_Mintsquare();
     // console.log("Now is ", VERSION, " verison")
