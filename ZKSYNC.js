@@ -593,6 +593,21 @@ async Mint_ZKAPES_Coin(){
 }
 
 
+async Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC(){
+ 
+    console.log(`[${this.Num}][${this.name}]Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC is running...`);
+    let Hash
+    try {
+    Hash = await this.mintL0NFT_crossChain()
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+}
+
 
     async completeTask(taskNumber, transaction_hash) {
         const taskName = this.tasks[taskNumber - 1];
@@ -2227,6 +2242,18 @@ async zklite_interact (toAddress)  {
 
   }
 
+  async mintL0NFT_crossChain(){
+        // L0NFTABI   is mint() function
+        const L0NFTABI = ["function mint()","function crossChain(uint16 dstChainId, uint256 tokenId) public payable"]
+        const L0contract = new ethers.Contract('0x31DCD96f29BD32F3a1856247846E9d2f95C2b639', L0NFTABI, this.signer);
+        const tx = await L0contract.mint()
+        const response = await tx.wait()
+        const tokenId = parseInt(response?.logs[1]?.topics[3])
+        const gasLimit = await L0contract.estimateGas.crossChain(109,tokenId,{value:ethers.utils.parseEther('0.0003')})//layerzero 跨链信息费用，一般是0.0002x,多了的会返回。
+        console.log(gasLimit.toString())
+        const tx2 = await L0contract.crossChain(109,tokenId,{value:ethers.utils.parseEther('0.0003'),gasLimit:Math.floor(gasLimit.toNumber() * 0.6)})
+        return tx2.hash
+  }
 
 
 
@@ -2239,10 +2266,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys2.csv'); 
+    // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[0];
+    // const { Num, OkxAdress,address, privateKey } = accounts[1];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.mintL0NFT();
     // await project.interactSelfBuiltContract();
     // await project.transferEthOnL1('0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA',0);
     // await project.Mint_NFT_On_Mintsquare();
