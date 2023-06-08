@@ -97,7 +97,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Interact_Self_Built_Contract"]
+        this.tasks=["Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -583,6 +583,8 @@ async Mint_ZKAPES_Coin(){
     let Hash
     try {
     Hash = await this.interactSelfBuiltContract()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] Interact_Self_Built_Contract: ${error}`);
         this.failTask(1, error)
@@ -599,6 +601,8 @@ async Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC(){
     let Hash
     try {
     Hash = await this.mintL0NFT_crossChain()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC: ${error}`);
         this.failTask(1, error)
