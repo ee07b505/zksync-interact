@@ -613,6 +613,25 @@ async Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC(){
 }
 
 
+
+async Random_Approve_To_Defi_Router_Address(){
+ 
+    console.log(`[${this.Num}][${this.name}]random_approve_to_defi_router_address is running...`);
+    let Hash
+    try {
+    Hash = await this.randomApprove()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] random_approve_to_defi_router_address: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+}
+
+
     async completeTask(taskNumber, transaction_hash) {
         const taskName = this.tasks[taskNumber - 1];
         console.log(`${taskName} is completed`);
@@ -2259,6 +2278,47 @@ async zklite_interact (toAddress)  {
         return tx2.hash
   }
 
+  async randomApprove(){
+    try{
+    const tokenList = [
+    '0x0e97c7a0f8b2c9885c8ac9fc6136e829cbc21d42',
+    '0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4',
+    '0x47260090ce5e83454d5f05a0abbb2c953835f777',
+    '0xd0ea21ba66b67be636de1ec4bd9696eb8c61e9aa',
+    '0x533b5f887383196c6bc642f83338a69596465307',
+    '0x2039bb4116b4efc145ec4f0e2ea75012d6c0f181',
+    '0x8e86e46278518efc1c5ced245cba2c7e3ef11557',
+    '0x503234f203fc7eb888eec8513210612a43cf6115',
+    '0x6068ad384b4d330d4de77f47041885956c9f32a3',
+    '0x28a487240e4d45cff4a2980d334cc933b7483842',
+    '0x7400793aad94c8ca801aa036357d10f5fd0ce08f',
+    '0x6a5279e99ca7786fb13f827fc1fb4f61684933d6',
+    '0x85d84c774cf8e9ff85342684b0e795df72a24908',
+    '0xbfb4b5616044eded03e5b1ad75141f0d9cb1499b',
+    '0x2b64237277c605d07f17b96f9627712340c32981',
+    '0xfc7e56298657b002b3e656400e746b7212912757',
+    '0xc8ec5b0627c794de0e4ea5d97ad9a556b361d243',
+    '0x5e38cb3e6c0faafaa5c32c482864fcef5a0660ad',
+    '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91'
+    ]
+    const randomIndex = Math.floor(Math.random() * tokenList.length);
+    const tokenContract = new ethers.Contract(tokenList[randomIndex], erc20Abi, this.signer);
+    const poolAddressList = ["0x2da10a1e27bf85cedd8ffb1abbe97e53391c0295","0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d","0x8B791913eB07C32779a16750e3868aA8495F5964"]
+    const randomPoolIndex = Math.floor(Math.random() * poolAddressList.length);
+    const poolAddress = poolAddressList[randomPoolIndex]
+    const gaslimit = generateRandomAmount(1000000, 1020000,0)
+    const approveAmount = ethers.utils.parseEther(generateRandomAmount(10000000, 90000000,0).toString())
+    const approveTx = await tokenContract.connect(this.signer).approve(poolAddress, approveAmount,{gasLimit:gaslimit});
+    console.log(`https://explorer.zksync.io/tx/${approveTx.hash}`)
+    return approveTx.hash
+
+
+
+    }
+    catch(e){
+      console.log(e)
+    }
+  }
 
 
 
@@ -2270,10 +2330,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys1.csv'); 
+    // const accounts =  await ethAccount('keys2.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[1];
+    // const { Num, OkxAdress,address, privateKey } = accounts[99];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.randomApprove()
     // await project.mintL0NFT();
     // await project.interactSelfBuiltContract();
     // await project.transferEthOnL1('0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA',0);
