@@ -49,7 +49,7 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-const zk_provider = new zksync.Provider(ZK_RPC_URL);
+const zk_provider = new zksync.Provider("http://localhost:3030");
 
 
 
@@ -2332,8 +2332,13 @@ async zklite_interact (toAddress)  {
 
     // const accounts =  await ethAccount('keys2.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[99];
+    // const { Num, OkxAdress,address, privateKey } = accounts[2];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // zk_provider.getNetwork().then(network => {
+    //     console.log("Connected to Zksync :", network);
+    // }).catch(error => {
+    //     console.log("Error connecting to Zksync:", error);
+    // });
     // await project.randomApprove()
     // await project.mintL0NFT();
     // await project.interactSelfBuiltContract();
