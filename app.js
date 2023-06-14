@@ -3,7 +3,7 @@ const fs = require("fs");
 const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
 
 const {
-    VERSION,
+    VERSION,csvFile
 } = config;
 
 const { ProjectManager } = require("./ProjectManager");
@@ -23,7 +23,7 @@ async function main(){
     }).catch(error => {
         console.log("Error connecting to Zksync:", error);
     });
-    const fileName = 'keys.csv';
+    const fileName = csvFile;
     console.log("Now is ",fileName," file")
     const accounts =  await ethAccount(fileName);
     const projectManager = new ProjectManager(accounts);
