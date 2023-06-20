@@ -509,6 +509,25 @@ async Mint_ZKAPES_Coin(){
  }
 
 
+ async Transfer_All_Balance_To_Self_L2(){
+
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2 is running...`);
+    let Hash
+    try {
+
+    Hash = await this.transferEthOnL2(this.address,-1)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+
+
  async Transfer_All_ZKAPE_To_Another_Account(){
 
     console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_All_ZKAPE_To_Another_Account is running...`);
@@ -2330,10 +2349,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys2.csv'); 
+    // const accounts =  await ethAccount('keys.csv'); 
 
     // const { Num, OkxAdress,address, privateKey } = accounts[2];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.Transfer_All_Balance_To_Self_L2();
     // zk_provider.getNetwork().then(network => {
     //     console.log("Connected to Zksync :", network);
     // }).catch(error => {
