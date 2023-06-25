@@ -49,7 +49,8 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-const zk_provider = new zksync.Provider("http://localhost:3030");
+//const zk_provider = new zksync.Provider("http://localhost:3030");
+const zk_provider = new zksync.Provider(ZK_RPC_URL);
 
 
 
@@ -97,13 +98,13 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC"]
+        this.tasks=["Transfer_All_Balance_To_Self_L2"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
     } 
 
-
+    
     getNextTask() {
         const remainingTasks = this.getRemainingTasks();
         const remainingRandomTasks = this.getRemainingTasks();
@@ -500,6 +501,36 @@ async Mint_ZKAPES_Coin(){
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
         console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_Half_Balance_To_Another_Account: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
+
+
+ async Transfer_80_percent_Balance_To_Another_Account(){
+
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account is running...`);
+    let Hash
+    try {
+    const amountLeave  = generateRandomAmount(0.0145,0.0155,5)
+    const balance= await zk_provider.getBalance(this.signer.address)
+    let amountETH = ethers.utils.formatEther(balance)
+    amountETH = Number(amountETH)-amountLeave
+    console.log(`[${this.name}] amountETH: ${amountETH}`)
+    if (amountETH<0.0001){
+        console.log(`[${this.name}] do not have enough ETH`)
+        Hash ='NoETH'
+        await this.completeTask(1, Hash);
+        return "NoETH"
+    }
+    Hash = await this.transferEthOnL2(this.okxAddress,amountETH)
+
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account: ${error}`);
         this.failTask(1, error)
         return;
     }
@@ -2349,10 +2380,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys.csv'); 
+    // const accounts =  await ethAccount('keys2.csv'); 
 
     // const { Num, OkxAdress,address, privateKey } = accounts[2];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.Transfer_80_percent_Balance_To_Another_Account();
     // await project.Transfer_All_Balance_To_Self_L2();
     // zk_provider.getNetwork().then(network => {
     //     console.log("Connected to Zksync :", network);
