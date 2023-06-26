@@ -9,6 +9,8 @@ app.use(express.json());
 
 app.use(async (req, res) => {
   const targetUrl = 'https://zksync-era.rpc.thirdweb.com/'; // Replace this with the target URL
+  //https://zksync2-mainnet.zksync.io
+  //https://zksync-era.rpc.thirdweb.com/
   req.headers.host = new URL(targetUrl).host;
   console.log(`Proxying request to ${targetUrl}${req.url}`);
   console.log(req.body);
