@@ -2370,6 +2370,111 @@ async zklite_interact (toAddress)  {
     }
   }
 
+  async eraLend_withdraw() {
+    const abi = [
+        'function balanceOf(address owner) external view returns (uint256)',
+        'function getCash() external view returns (uint256)',
+        'function mint() external payable returns (uint)',
+        'function redeemUnderlying(uint redeemAmount) external returns (uint)'
+    ];
+    const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
+
+    try {
+
+        console.time('EraLend');
+        // 创建钱包
+        const wallet = this.signer;
+        const contract = new zksync.Contract(contractAddress, abi, wallet);
+        const ethBalance = await wallet.getBalance(ethers.constants.AddressZero);
+        console.log('ETH 余额', ethers.utils.formatEther(ethBalance));
+
+        // 获取 nETH
+        let nETHBalance = await contract.balanceOf(wallet.address);
+        let amount = ethers.BigNumber.from(0);
+
+        if (nETHBalance.gt(ethers.BigNumber.from(10000000))) {
+            console.log('EraLend nETH 余额', ethers.utils.formatUnits(nETHBalance, 8));
+            amount = ethers.utils.formatUnits(nETHBalance.div(ethers.BigNumber.from(50)), 8);
+            console.log('EraLend 取回', `${amount} ETH`);
+            amount = ethers.utils.parseEther(amount);
+            // 总量超过 1u 证明已经添加过，取出来
+            let gasLimit = await contract.estimateGas.redeemUnderlying(amount);
+            gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+            let response = await contract.redeemUnderlying(amount, { gasLimit });
+            let tx = await response.wait();
+            console.log('EraLend 取回成功', tx.transactionHash);
+            console.timeEnd('EraLend');
+            return tx.transactionHash;
+
+        } 
+        console.log("EraLend nETH 没有余额可供提款")
+        return false;
+
+    } catch (error) {
+        console.log(error);
+        return false;
+    }
+}
+
+async eraLend_deposit() {
+    const abi = [
+        'function balanceOf(address owner) external view returns (uint256)',
+        'function getCash() external view returns (uint256)',
+        'function mint() external payable returns (uint)',
+        'function redeemUnderlying(uint redeemAmount) external returns (uint)'
+    ];
+    const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
+
+    try {
+
+        console.time('EraLend');
+        // 创建钱包
+        const wallet = this.signer;
+        const contract = new zksync.Contract(contractAddress, abi, wallet);
+        const ethBalance = await wallet.getBalance(ethers.constants.AddressZero);
+        console.log('ETH 余额', ethers.utils.formatEther(ethBalance));
+
+        // 获取 nETH
+        let nETHBalance = await contract.balanceOf(wallet.address);
+        let amount = ethers.BigNumber.from(0);
+
+        
+        //if ethBalance is bigger than 0.1 ETH, deposit 0.1 ETH to EraLend
+        if (ethBalance.gt(ethers.utils.parseEther("0.1"))) {
+            amount = ethers.utils.parseEther("0.1");
+            console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
+            let gasLimit = await contract.estimateGas.mint({ value: amount });
+            gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+            let response = await contract.mint({ value: amount, gasLimit });
+            let tx = await response.wait();
+            console.log('EraLend 充值成功', tx.transactionHash);
+            console.timeEnd('EraLend');
+            return tx.transactionHash;
+            }
+        //if ethBalance is bigger than 0.01 ETH, deposit 50% ETH to EraLend
+        else if (ethBalance.gt(ethers.utils.parseEther("0.01"))) {
+            amount = ethers.utils.parseEther("0.01");
+            console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
+            let gasLimit = await contract.estimateGas.mint({ value: amount });
+            gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+            let response = await contract.mint({ value: amount, gasLimit });
+            let tx = await response.wait();
+            console.log('EraLend 充值成功', tx.transactionHash);
+            console.timeEnd('EraLend');
+            return tx.transactionHash;
+            }
+
+        console.log("EraLend ETH 没有足够余额可供充值")
+
+
+        
+
+    } catch (error) {
+        console.log(error);
+        return false;
+    }
+}
+
 
 
 }
@@ -2380,10 +2485,11 @@ async zklite_interact (toAddress)  {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys2.csv'); 
+    // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[2];
+    // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.eraLend_withdraw()
     // await project.Transfer_80_percent_Balance_To_Another_Account();
     // await project.Transfer_All_Balance_To_Self_L2();
     // zk_provider.getNetwork().then(network => {
