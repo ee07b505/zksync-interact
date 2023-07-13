@@ -13,8 +13,9 @@ class ProjectManager {
         this.currentProject = null;
     }
     async start() {
-        await this.loadState();
         while (true) {
+            await this.loadState();
+
             const unfinishedProjects = Array.from(this.projects.values()).filter((project) => !project.isCompleted());
 
             if (unfinishedProjects.length === 0) {
@@ -30,12 +31,13 @@ class ProjectManager {
                 await project[task]();
             } else {
                 console.log(`All tasks completed.`);
+                break;
             }
             const minSeconds = 0.1 * 60;
             const maxSeconds = 0.2 * 60;
             const totalSeconds = Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds);//减去4秒
             console.log(`sleep ${totalSeconds} seconds ...`)
-            await sleep(totalSeconds)
+            //await sleep(totalSeconds)
 
         }
     }

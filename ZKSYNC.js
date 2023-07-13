@@ -49,8 +49,10 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-//const zk_provider = new zksync.Provider("http://localhost:3030");
-const zk_provider = new zksync.Provider(ZK_RPC_URL);
+const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
+//const zk_provider = new zksync.Provider(ZK_RPC_URL);
+//https://localhost:3030
+//http://43.133.208.250:3030
 
 
 
@@ -98,7 +100,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Transfer_All_Balance_To_Self_L2"]
+        this.tasks=["Mint_Pawpoints_Coin"]
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -342,15 +344,15 @@ async Bridge_Orbiter_ERA_to_ETH(){
 
 }
 
-async Mint_Dogera_ALL(){
+async Mint_Pawpoints_Coin(){
 
-    console.log(`[${this.Num}][${this.name}] Mint_Dogera_ALL is running...`);
+    console.log(`[${this.Num}][${this.name}] Mint_Pawpoints_Coin is running...`);
     let Hash
     try {
-    Hash = await this.mint_dogera()
+    Hash = await this.mint_Pawpoints()
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
     } catch (error) {
-        console.log(`[${this.Num}][${this.name}] Mint_Dogera_ALL: ${error}`);
+        console.log(`[${this.Num}][${this.name}] Mint_Pawpoints_Coin: ${error}`);
         this.failTask(1, error)
         return;
     }
@@ -2476,6 +2478,30 @@ async eraLend_deposit() {
 }
 
 
+    async mint_Pawpoints(){
+        //https://petaverse.space
+
+        try{
+            const mint_Pawpoints_address='0x58DE0595D262533B564B2b8961C104042e390922'
+            const payload = {   
+                to: mint_Pawpoints_address,
+                data:'0xd7aada81000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000'
+            }
+            const gasLimit =await this.signer.estimateGas(payload)
+            const tx = await this.signer.sendTransaction({...payload, gasLimit:Math.floor(+gasLimit.toString()*0.6)})
+            console.log(" - Tx submitted for mint DAO NFT on wallet: ", this.signer.address, ", hash (ETH)" , tx.hash, " - ")
+            console.log(`https://explorer.zksync.io/tx/${tx.hash}`)
+            // await tx.wait();
+
+            return tx.hash
+            }
+            catch (error) {
+                console.error("Error while mint DAO NFT:", error.message);
+            }
+        
+}
+
+
 
 }
 
@@ -2487,9 +2513,9 @@ async eraLend_deposit() {
 
     // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[0];
+    // const { Num, OkxAdress,address, privateKey } = accounts[1];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.eraLend_withdraw()
+    // await project.mint_Pawpoints()
     // await project.Transfer_80_percent_Balance_To_Another_Account();
     // await project.Transfer_All_Balance_To_Self_L2();
     // zk_provider.getNetwork().then(network => {
