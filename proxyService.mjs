@@ -2,6 +2,8 @@ import express from 'express';
 import axios from 'axios';
 import https from 'https';
 import cluster from 'cluster';
+import fs from 'fs';
+const proxies = fs.readFileSync('proxies.txt', 'utf-8').split('\n').filter(Boolean);
 
 if (cluster.isPrimary) {
   let cpus=3
@@ -33,6 +35,9 @@ else if (cluster.isWorker) {
     const targetUrl = 'https://rpc.ankr.com/zksync_era'; // Replace this with the target URL
     //https://zksync2-mainnet.zksync.io
     //https://zksync-era.rpc.thirdweb.com/
+    const randomIndex = Math.floor(Math.random() * proxies.length);
+    const proxy = proxies[randomIndex];
+    const [host, port, username, password] = proxy.split(':');
     req.headers.host = new URL(targetUrl).host;
     console.log(`Proxying request to ${targetUrl}${req.url}`);
     console.log(req.body);
@@ -42,11 +47,19 @@ else if (cluster.isWorker) {
     try {
       const response = await axios({
         method: req.method,
-        httpsAgent: agent,
-        proxy: {
-          host: 'proxy.scrapingbee.com',
-          port: 8887,
-          auth: {username: 'VJYRIGU1L9Z8F1UBSV8R5WJOLEA7O86ZQ7ONOLZ643I0DTI8J7OCMGGTMUHSTDPCJCHHYM2SNS440OI9', password: 'render_js=False&premium_proxy=True'}
+        // httpsAgent: agent,
+      //   proxy: {
+      //     host: 'proxy.scrapingbee.com',
+      //     port: 8887,
+      //     auth: {username: 'VJYRIGU1L9Z8F1UBSV8R5WJOLEA7O86ZQ7ONOLZ643I0DTI8J7OCMGGTMUHSTDPCJCHHYM2SNS440OI9', password: 'render_js=False&premium_proxy=True'}
+      // },
+      proxy: {
+        host,
+        port,
+        auth: {
+          username,
+          password
+        }
       },
         url: `${targetUrl}${req.url}`,
         headers: { 
