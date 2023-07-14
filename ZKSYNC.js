@@ -100,7 +100,7 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Mint_Pawpoints_Coin"]
+        this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -109,22 +109,22 @@ class ZKSYNC {
     
     getNextTask() {
         const remainingTasks = this.getRemainingTasks();
-        const remainingRandomTasks = this.getRemainingTasks();
+        //const remainingRandomTasks = this.getRemainingTasks();
 
-        //if (remainingTasks.length === 7) {
-        //    return 'deposit_All_funds_L1_to_L2';
-        //}
-        //if (remainingTasks.length === 2) {
-        //    return 'Swap_Usdc_to_Target_On_Syncswap';
-        //}
-        // if (remainingTasks.length === 1) {
-        //    return 'Zklite_ActivateAccounts_MintNFT_TransferToOkx';//
-        // }
+        if (remainingTasks.length === 3) {
+           return 'Eralend_Stellar_Deposit';
+        }
+        if (remainingTasks.length === 2) {
+           return 'Eralend_Stellar_EnterMarkets';
+        }
+        if (remainingTasks.length === 1) {
+           return 'Eralend_Stellar_Borrow';//
+        }
         // const remainingRandomTasks = remainingTasks.filter(
         //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
         // );
-        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
-        return remainingRandomTasks[randomIndex];
+        // const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+        // return remainingRandomTasks[randomIndex];
     }
 
     async deposit_All_funds_L1_to_L2() {
@@ -682,6 +682,62 @@ async Random_Approve_To_Defi_Router_Address(){
     await this.completeTask(1, Hash);
 
 }
+
+
+async Eralend_Stellar_Deposit(){
+ 
+    console.log(`[${this.Num}][${this.name}]Eralend_Stellar_Deposit is running...`);
+    let Hash
+    try {
+        // deposit 0.03eth to eralend
+    const amount = ethers.utils.parseEther("0.03");
+    Hash = await this.eraLend_deposit(amount)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Eralend_Stellar_Deposit: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+}
+
+
+async Eralend_Stellar_EnterMarkets(){
+ 
+    console.log(`[${this.Num}][${this.name}]Eralend_Stellar_EnterMarkets is running...`);
+    let Hash
+    try {
+    Hash = await this.eralend_enterMarkets()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Eralend_Stellar_EnterMarkets: ${error}`);
+        this.failTask(2, error)
+        return;
+    }
+    await this.completeTask(2, Hash);
+
+}
+async Eralend_Stellar_Borrow(){
+ 
+    console.log(`[${this.Num}][${this.name}]Eralend_Stellar_Borrow is running...`);
+    let Hash
+    try {
+    const borrowAmount = ethers.utils.parseEther("0.017");
+    Hash = await this.eralend_borrow(borrowAmount)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Eralend_Stellar_Borrow: ${error}`);
+        this.failTask(3, error)
+        return;
+    }
+    await this.completeTask(3, Hash);
+
+}
+
 
 
     async completeTask(taskNumber, transaction_hash) {
@@ -2418,7 +2474,7 @@ async zklite_interact (toAddress)  {
     }
 }
 
-async eraLend_deposit() {
+async eraLend_deposit(amount=ethers.utils.parseEther("0.03")) {
     const abi = [
         'function balanceOf(address owner) external view returns (uint256)',
         'function getCash() external view returns (uint256)',
@@ -2438,12 +2494,10 @@ async eraLend_deposit() {
 
         // 获取 nETH
         let nETHBalance = await contract.balanceOf(wallet.address);
-        let amount = ethers.BigNumber.from(0);
 
         
         //if ethBalance is bigger than 0.1 ETH, deposit 0.1 ETH to EraLend
-        if (ethBalance.gt(ethers.utils.parseEther("0.1"))) {
-            amount = ethers.utils.parseEther("0.1");
+        if (ethBalance.gt(ethers.utils.parseEther("0.05"))&&ethBalance.gt(amount)) {
             console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
             let gasLimit = await contract.estimateGas.mint({ value: amount });
             gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
@@ -2454,17 +2508,17 @@ async eraLend_deposit() {
             return tx.transactionHash;
             }
         //if ethBalance is bigger than 0.01 ETH, deposit 50% ETH to EraLend
-        else if (ethBalance.gt(ethers.utils.parseEther("0.01"))) {
-            amount = ethers.utils.parseEther("0.01");
-            console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
-            let gasLimit = await contract.estimateGas.mint({ value: amount });
-            gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
-            let response = await contract.mint({ value: amount, gasLimit });
-            let tx = await response.wait();
-            console.log('EraLend 充值成功', tx.transactionHash);
-            console.timeEnd('EraLend');
-            return tx.transactionHash;
-            }
+        // else if (ethBalance.gt(ethers.utils.parseEther("0.01"))) {
+        //     amount = ethers.utils.parseEther("0.01");
+        //     console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
+        //     let gasLimit = await contract.estimateGas.mint({ value: amount });
+        //     gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+        //     let response = await contract.mint({ value: amount, gasLimit });
+        //     let tx = await response.wait();
+        //     console.log('EraLend 充值成功', tx.transactionHash);
+        //     console.timeEnd('EraLend');
+        //     return tx.transactionHash;
+        //     }
 
         console.log("EraLend ETH 没有足够余额可供充值")
 
@@ -2477,6 +2531,114 @@ async eraLend_deposit() {
     }
 }
 
+
+async eralend_enterMarkets() {
+    const abi = [{
+        "constant": false,
+        "inputs": [{
+            "internalType": "address[]",
+            "name": "cTokens",
+            "type": "address[]"
+        }],
+        "name": "enterMarkets",
+        "outputs": [{
+            "internalType": "uint256[]",
+            "name": "",
+            "type": "uint256[]"
+        }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }]
+    const contractAddress = '0x0171cA5b372eb510245F5FA214F5582911934b3D';
+    const cTokens =['0x1BbD33384869b30A323e15868Ce46013C82B86FB']
+    const contract = new zksync.Contract(contractAddress, abi, this.signer);
+    //let gasLimit = await contract.estimateGas.enterMarkets(cTokens);
+    //gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+    let response = await contract.enterMarkets(cTokens);
+    let tx = await response.wait();
+    console.log('EraLend 进入市场充当抵押物成功', tx.transactionHash);
+    return tx.transactionHash;
+}
+
+
+async eralend_exitMarket() {
+    const abi = [{
+        "constant": false,
+        "inputs": [{
+            "internalType": "address",
+            "name": "cTokenAddress",
+            "type": "address"
+        }],
+        "name": "exitMarket",
+        "outputs": [{
+            "internalType": "uint256[]",
+            "name": "",
+            "type": "uint256[]"
+        }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }]
+    const contractAddress = '0x0171cA5b372eb510245F5FA214F5582911934b3D';
+    const cTokenAddress ='0x1BbD33384869b30A323e15868Ce46013C82B86FB'
+    const contract = new zksync.Contract(contractAddress, abi, this.signer);
+    //let gasLimit = await contract.estimateGas.exitMarket(cTokenAddress);
+    //gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+    let response = await contract.exitMarket(cTokenAddress);
+    let tx = await response.wait();
+    console.log('EraLend 离开市场解除抵押物成功', tx.transactionHash);
+    return tx.transactionHash;
+}
+
+async eralend_borrow(borrowAmount=ethers.utils.parseEther("0.017")) {
+    const abi = [{
+        "constant": false,
+        "inputs": [{
+            "internalType": "uint256",
+            "name": "borrowAmount",
+            "type": "uint256"
+        }],
+        "name": "borrow",
+        "outputs": [{
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+        }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }]
+    const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
+    const contract = new zksync.Contract(contractAddress, abi, this.signer);
+    let gasLimit = await contract.estimateGas.borrow(borrowAmount);
+    gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+    let response = await contract.borrow(borrowAmount, { gasLimit });
+    let tx = await response.wait();
+    console.log('EraLend 借款成功', tx.transactionHash);
+    return tx.transactionHash;
+}
+
+async eralend_repayBorrow() {
+    const abi = [{
+        "constant": false,
+        "inputs": [],
+        "name": "repayBorrow",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function"
+    }]
+    const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
+    const contract = new zksync.Contract(contractAddress, abi, this.signer);
+    const value = ethers.utils.parseEther("0.017");
+    let gasLimit = await contract.estimateGas.repayBorrow({ value});
+    gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+    let response = await contract.repayBorrow({ value,gasLimit });
+    let tx = await response.wait();
+    console.log('EraLend 还款成功', tx.transactionHash);
+    return tx.transactionHash;
+}
 
     async mint_Pawpoints(){
         //https://petaverse.space
@@ -2515,7 +2677,10 @@ async eraLend_deposit() {
 
     // const { Num, OkxAdress,address, privateKey } = accounts[1];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.mint_Pawpoints()
+    //await project.eraLend_deposit()
+    //await project.eralend_repayBorrow()
+    // await project.eralend_exitMarket()
+    // await project.eraLend_withdraw()
     // await project.Transfer_80_percent_Balance_To_Another_Account();
     // await project.Transfer_All_Balance_To_Self_L2();
     // zk_provider.getNetwork().then(network => {
