@@ -50,8 +50,8 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
-//const zk_provider = new zksync.Provider(ZK_RPC_URL);
+//const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
+const zk_provider = new zksync.Provider(ZK_RPC_URL);
 //https://localhost:3030
 //http://43.133.208.250:3030
 
@@ -107,8 +107,8 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
+        this.tasks = ["Transfer_Part_Balance_To_Another_Account_L2"];
+        //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -117,22 +117,22 @@ class ZKSYNC {
     
     getNextTask() {
         const remainingTasks = this.getRemainingTasks();
-        //const remainingRandomTasks = this.getRemainingTasks();
+        const remainingRandomTasks = this.getRemainingTasks();
 
-        if (remainingTasks.length === 3) {
-           return 'Eralend_Stellar_Deposit';
-        }
-        if (remainingTasks.length === 2) {
-           return 'Eralend_Stellar_EnterMarkets';
-        }
-        if (remainingTasks.length === 1) {
-           return 'Eralend_Stellar_Borrow';//
-        }
+        // if (remainingTasks.length === 3) {
+        //    return 'Eralend_Stellar_Deposit';
+        // }
+        // if (remainingTasks.length === 2) {
+        //    return 'Eralend_Stellar_EnterMarkets';
+        // }
+        // if (remainingTasks.length === 1) {
+        //    return 'Eralend_Stellar_Borrow';//
+        // }
         // const remainingRandomTasks = remainingTasks.filter(
         //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
         // );
-        // const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
-        // return remainingRandomTasks[randomIndex];
+         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+         return remainingRandomTasks[randomIndex];
     }
 
     async deposit_All_funds_L1_to_L2() {
@@ -519,7 +519,7 @@ async Mint_ZKAPES_Coin(){
  }
 
 
- async Transfer_80_percent_Balance_To_Another_Account(){
+ async Transfer__percent_Balance_To_Another_Account(){
 
     console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account is running...`);
     let Hash
@@ -567,6 +567,26 @@ async Mint_ZKAPES_Coin(){
 
  }
 
+
+
+ async Transfer_Part_Balance_To_Another_Account_L2(){
+
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2 is running...`);
+    let Hash
+    try {
+    const amountETH  = generateRandomAmount(0.0301,0.0315,5)
+    console.log(`[${this.name}] transfer  amountETH: ${amountETH} to ${this.okxAddress}`)
+    Hash = await this.transferEthOnL2(this.okxAddress,amountETH)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
 
  async Transfer_All_ZKAPE_To_Another_Account(){
 
