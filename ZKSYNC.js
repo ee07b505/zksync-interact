@@ -50,8 +50,8 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-//const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
-const zk_provider = new zksync.Provider(ZK_RPC_URL);
+const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
+//const zk_provider = new zksync.Provider(ZK_RPC_URL);
 //https://localhost:3030
 //http://43.133.208.250:3030
 
@@ -59,7 +59,8 @@ async function checkMainnetGasPrice() {
     //if gasPrice is bigger than 20 gwei, throw new error
     const gasPrice = await eth_provider.getGasPrice();
     if (gasPrice > ethers.utils.parseUnits(gasPriceLimit, "gwei")) {
-        console.log("Gas price is too high :",ethers.utils.formatUnits(gasPrice, "gwei"));
+        console.log("Gas price is too high :",ethers.utils.formatUnits(gasPrice, "gwei"),"wait one minute");
+        await sleep(60);
         throw new Error('Gas price is too high, please wait for a while')
     }
 }
@@ -108,7 +109,8 @@ class ZKSYNC {
         //    "Add_Liquidity_On_Syncswap"
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
+        //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
+        this.tasks=["Mint_NFT_On_Mintsquare"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -116,23 +118,23 @@ class ZKSYNC {
 
     
     getNextTask() {
-        const remainingTasks = this.getRemainingTasks();
-        //const remainingRandomTasks = this.getRemainingTasks();
+        //const remainingTasks = this.getRemainingTasks();
+        const remainingRandomTasks = this.getRemainingTasks();
 
-        if (remainingTasks.length === 3) {
-           return 'Eralend_Stellar_Deposit';
-        }
-        if (remainingTasks.length === 2) {
-           return 'Eralend_Stellar_EnterMarkets';
-        }
-        if (remainingTasks.length === 1) {
-           return 'Eralend_Stellar_Borrow';//
-        }
+        // if (remainingTasks.length === 3) {
+        //    return 'Eralend_Stellar_Deposit';
+        // }
+        // if (remainingTasks.length === 2) {
+        //    return 'Eralend_Stellar_EnterMarkets';
+        // }
+        // if (remainingTasks.length === 1) {
+        //    return 'Eralend_Stellar_Borrow';//
+        // }
         // const remainingRandomTasks = remainingTasks.filter(
         //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
         // );
-        // const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
-        // return remainingRandomTasks[randomIndex];
+        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+        return remainingRandomTasks[randomIndex];
     }
 
     async deposit_All_funds_L1_to_L2() {
@@ -210,6 +212,7 @@ class ZKSYNC {
         let Hash
 
         try {
+             await checkMainnetGasPrice();
              Hash = await this.mintRandomOnMintSquare();
              console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
@@ -1492,7 +1495,6 @@ async transferErc20OnL2(address, amountInEther,tokenAddress ) {
         // Call the mint function and wait for confirmation
         const gasLimit = Math.floor(+estimatedGas.toString() *0.7);
         const mintTx = await contract.mint(uri,{gasLimit});
-        await mintTx.wait();
         console.log("Minted NFT with URI:", uri);
         console.log(mintTx.hash)
         return mintTx.hash
@@ -2681,13 +2683,12 @@ async eralend_repayBorrow() {
 
 
 (async () => {
-    const {ethAccount} =require("./account/encrypto")
+    // const {ethAccount} =require("./account/encrypto")
 
-    const accounts =  await ethAccount('1100_era_keys.csv'); 
+    // const accounts =  await ethAccount('1100_era_keys.csv'); 
 
-    const { Num, OkxAdress,address, privateKey } = accounts[1];
-    const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    await project.mintRandomOnMintSquare();
+    // const { Num, OkxAdress,address, privateKey } = accounts[2];
+    // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
