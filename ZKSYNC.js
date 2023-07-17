@@ -59,7 +59,8 @@ async function checkMainnetGasPrice() {
     //if gasPrice is bigger than 20 gwei, throw new error
     const gasPrice = await eth_provider.getGasPrice();
     if (gasPrice > ethers.utils.parseUnits(gasPriceLimit, "gwei")) {
-        console.log("Gas price is too high :",ethers.utils.formatUnits(gasPrice, "gwei"));
+        console.log("Gas price is too high :",ethers.utils.formatUnits(gasPrice, "gwei"),"wait one minute");
+        await sleep(60);
         throw new Error('Gas price is too high, please wait for a while')
     }
 }
@@ -107,8 +108,9 @@ class ZKSYNC {
         //    "Swap_Usdc_to_Target_On_Syncswap",
         //    "Add_Liquidity_On_Syncswap"
         //];
-        this.tasks = ["Transfer_Part_Balance_To_Another_Account_L2"];
+        //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
+        this.tasks=["Mint_NFT_On_Mintsquare"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -116,7 +118,7 @@ class ZKSYNC {
 
     
     getNextTask() {
-        const remainingTasks = this.getRemainingTasks();
+        //const remainingTasks = this.getRemainingTasks();
         const remainingRandomTasks = this.getRemainingTasks();
 
         // if (remainingTasks.length === 3) {
@@ -131,8 +133,8 @@ class ZKSYNC {
         // const remainingRandomTasks = remainingTasks.filter(
         //    task => !['Zklite_ActivateAccounts_MintNFT_TransferToOkx'].includes(task)
         // );
-         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
-         return remainingRandomTasks[randomIndex];
+        const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
+        return remainingRandomTasks[randomIndex];
     }
 
     async deposit_All_funds_L1_to_L2() {
@@ -210,6 +212,7 @@ class ZKSYNC {
         let Hash
 
         try {
+             await checkMainnetGasPrice();
              Hash = await this.mintRandomOnMintSquare();
              console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
@@ -1510,9 +1513,8 @@ async transferErc20OnL2(address, amountInEther,tokenAddress ) {
         }
         console.log(`Estimated gas: ${estimatedGas.toString()}`);
         // Call the mint function and wait for confirmation
-        const gasLimit = Math.floor(+estimatedGas.toString() *0.5);
+        const gasLimit = Math.floor(+estimatedGas.toString() *0.7);
         const mintTx = await contract.mint(uri,{gasLimit});
-        await mintTx.wait();
         console.log("Minted NFT with URI:", uri);
         console.log(mintTx.hash)
         return mintTx.hash
@@ -2703,69 +2705,10 @@ async eralend_repayBorrow() {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys1.csv'); 
+    // const accounts =  await ethAccount('1100_era_keys.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[1];
+    // const { Num, OkxAdress,address, privateKey } = accounts[2];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    //await project.eraLend_deposit()
-    //await project.eralend_repayBorrow()
-    // await project.eralend_exitMarket()
-    // await project.eraLend_withdraw()
-    // await project.Transfer_80_percent_Balance_To_Another_Account();
-    // await project.Transfer_All_Balance_To_Self_L2();
-    // zk_provider.getNetwork().then(network => {
-    //     console.log("Connected to Zksync :", network);
-    // }).catch(error => {
-    //     console.log("Error connecting to Zksync:", error);
-    // });
-    // await project.randomApprove()
-    // await project.mintL0NFT();
-    // await project.interactSelfBuiltContract();
-    // await project.transferEthOnL1('0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA',0);
-    // await project.Mint_NFT_On_Mintsquare();
-    // console.log("Now is ", VERSION, " verison")
-    // console.log("Now is ", VERSION, " verison")
-    // console.log("Now is ", VERSION, " verison")
-    // const myZksync = new ZKSYNC(99, ADDRESS, PRIVATE_KEY,'0x2945450B77D80c48593c53DC6965f3Abe17e2eaF');
-    // //await myZksync.transferErc20OnL2('0xB3E4F411309C20E6c3a048705803D415F905B72A',0.2,'0x9D29342309534095AC442fE5D255b3252aa770b5');
-    // //await myZksync.transferEthOnL2('0xB3E4F411309C20E6c3a048705803D415F905B72A',-1);
-    //  await myZksync.mint_zkapes();
-    // await myZksync.mint_cheems_pet();
-    //await myZksync.bridgeOrbiterERAtoETH(0.0063);
-    //await myZksync.zklite_interact("0x99b30caeff4016a1900954d1f7a870d80cd72fa1");
-    // await myZksync.sync_swap_any_to_any("0xA59af353E423F54D47F2Ce5F85e3e265d95282Cd","0x5aea5775959fbc2557cc8789bc1bf90a239d9a91","-1",5)
-    // await myZksync.mint_dogera();
-    //await myZksync.mint_DAO_NFT();
-    //await myZksync.transferEthOnL2('0xCaeaC0f8061661b3eC4315E04219ABec67eDcbF4',-1)
-    //await myZksync.bridgeOrbiterERAtoETH(0.0063);
-    // await myZksync.revoke_usdc_on_syncswap();
-    //await myZksync.sign_permit("0x80115c708E12eDd42E504c1cD52Aea96C547c05c", 1000000,7200);
-    //await myZksync.deposit_All_funds_L1_to_L2();
-    //await myZksync.Swap_Usdc_On_Syncswap(1);
-    //await myZksync.Swap_Usdc_On_Mute(1);
-    //await myZksync.Swap_Usdc_On_Spacefi(1);
-    //await myZksync.Swap_Usdc_to_Target_On_Syncswap(4);
-    //await myZksync.swapExactTokenForEthOnSpaceFi(USDC_ADDRESS, 2)
-
-    //await myZksync.Add_Liquidity_On_Syncswap();
-    //await myZksync.depositEthFromL1toL2(0.1);
-    //await myZksync.depositAllEthFromL1toL2()
-    //await myZksync.withdrawEthFromL2toL1(0.05)
-
-    //await myZksync.transferEthOnL2("0xB3E4F411309C20E6c3a048705803D415F905B72A",0.01)
-    //await myZksync.swapEthForTokenOnSyncSwap(DAI_ADDRESS, 0.001);  //dai
-    //await myZksync.mintRandomOnMintSquare()
-    //await myZksync.addLiquidityEthAndUsdcOnSyncSwap(USDC_ADDRESS, 1.9);//
-    //await myZksync.burnLiquiditySingleEthAndUsdcOnSyncSwap(USDC_ADDRESS)
-    //await myZksync.burnLiquiditySingleEthAndUsdcOnSyncSwap(USDC_ADDRESS)
-
-    //await myZksync.swapEthForTokenOnMute(DAI_ADDRESS, 0.00001);  //dai
-
-    // for (let i=0;i<=10;i++){
-    //     await myZksync.addLiquidityEthAndUsdcOnSyncSwap('0x0bfce1d53451b4a8175dd94e6e029f7d8a701e9c', '1754830997882259');
-    // }
-    //await myZksync.swapEthForTokenOnSpaceFi("0x880F03cA84e6Cf0D0871c9818A2981DEBabA22b3",0.0001)
-    //await myZksync.swapExactTokenForEthOnMute(DAI_ADDRESS, 780.151896115465127961)
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
