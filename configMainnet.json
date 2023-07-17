@@ -13,5 +13,6 @@
   "MintSquareContract": "0x53eC17BD635F7A54B3551E76Fd53Db8881028fC3",
   "SpaceFi_Router_Contract": "0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d",
   "Mute_Router_Contract": "0x8B791913eB07C32779a16750e3868aA8495F5964",
+  "gasPriceLimit": "20",
   "csvFile":"keys1.csv"
 }

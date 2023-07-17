@@ -30,7 +30,8 @@ const {
     SpaceFi_Router_Contract,
     wETH_ADDRESS,
     USDC_ADDRESS,
-    Dogera_ADDRESS
+    Dogera_ADDRESS,
+    gasPriceLimit,
 } = config;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -54,7 +55,14 @@ const zk_provider = new zksync.Provider(ZK_RPC_URL);
 //https://localhost:3030
 //http://43.133.208.250:3030
 
-
+async function checkMainnetGasPrice() {
+    //if gasPrice is bigger than 20 gwei, throw new error
+    const gasPrice = await eth_provider.getGasPrice();
+    if (gasPrice > ethers.utils.parseUnits(gasPriceLimit, "gwei")) {
+        console.log("Gas price is too high :",ethers.utils.formatUnits(gasPrice, "gwei"));
+        throw new Error('Gas price is too high, please wait for a while')
+    }
+}
 
 async function checkETHBalances(signer,address=null) {
     const balanceAddress = address ? address : signer.address;
@@ -134,7 +142,6 @@ class ZKSYNC {
             const min = 0.195;
             const max = 0.205;
             const randomNum = Math.random() * (max - min) + min;
-
             Hash = await this.depositEthFromL1toL2(randomNum);
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
@@ -691,6 +698,7 @@ async Eralend_Stellar_Deposit(){
     try {
         // deposit 0.03eth to eralend
     const amount = ethers.utils.parseEther("0.03");
+    await checkMainnetGasPrice();
     Hash = await this.eraLend_deposit(amount)
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
@@ -709,6 +717,7 @@ async Eralend_Stellar_EnterMarkets(){
     console.log(`[${this.Num}][${this.name}]Eralend_Stellar_EnterMarkets is running...`);
     let Hash
     try {
+        await checkMainnetGasPrice();
     Hash = await this.eralend_enterMarkets()
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
@@ -726,6 +735,7 @@ async Eralend_Stellar_Borrow(){
     let Hash
     try {
     const borrowAmount = ethers.utils.parseEther("0.017");
+    await checkMainnetGasPrice();
     Hash = await this.eralend_borrow(borrowAmount)
     console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
