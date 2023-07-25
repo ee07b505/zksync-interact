@@ -50,8 +50,8 @@ const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "u
 
 
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
-const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
-//const zk_provider = new zksync.Provider(ZK_RPC_URL);
+//const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
+const zk_provider = new zksync.Provider(ZK_RPC_URL);
 //https://localhost:3030
 //http://43.133.208.250:3030
 
@@ -110,7 +110,7 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks=["Mint_NFT_On_Mintsquare"];
+        this.tasks=["Approve_PPT_To_Syncswap"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -751,7 +751,23 @@ async Eralend_Stellar_Borrow(){
 
 }
 
+async Approve_PPT_To_Syncswap(){
+ 
+    console.log(`[${this.Num}][${this.name}]Approve_PPT_To_Syncswap is running...`);
+    let Hash
+    try {
+    await checkMainnetGasPrice();
+    Hash = await this.approve_pawpoints_to_syncswap()
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] Approve_PPT_To_Syncswap: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+}
 
     async completeTask(taskNumber, transaction_hash) {
         const taskName = this.tasks[taskNumber - 1];
@@ -2426,9 +2442,9 @@ async zklite_interact (toAddress)  {
     const poolAddressList = ["0x2da10a1e27bf85cedd8ffb1abbe97e53391c0295","0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d","0x8B791913eB07C32779a16750e3868aA8495F5964"]
     const randomPoolIndex = Math.floor(Math.random() * poolAddressList.length);
     const poolAddress = poolAddressList[randomPoolIndex]
-    const gaslimit = generateRandomAmount(1000000, 1020000,0)
+    const gasLimit = generateRandomAmount(1000000, 1020000,0)
     const approveAmount = ethers.utils.parseEther(generateRandomAmount(10000000, 90000000,0).toString())
-    const approveTx = await tokenContract.connect(this.signer).approve(poolAddress, approveAmount,{gasLimit:gaslimit});
+    const approveTx = await tokenContract.connect(this.signer).approve(poolAddress, approveAmount,{gasLimit});
     console.log(`https://explorer.zksync.io/tx/${approveTx.hash}`)
     return approveTx.hash
 
@@ -2674,6 +2690,23 @@ async eralend_repayBorrow() {
             }
         
 }
+async approve_pawpoints_to_syncswap(){
+    try{
+    const token_in_contract = '0x030b8487c5f5b77193b53e56f951865b79358e30'
+    const tokenContract = new ethers.Contract(token_in_contract, erc20Abi, this.signer);
+    const gasEsitmate = await tokenContract.estimateGas.approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
+    console.log("gasLimit estimate is",gasEsitmate.toString())
+    const gasLimit = generateRandomAmount(1000000, 1020000,0)
+    const approveTx = await tokenContract.approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256,{gasLimit});
+    console.log(`Transaction approved: ${approveTx.hash}`);
+    await approveTx.wait();
+    return approveTx.hash
+    }
+    catch(e){
+      console.log(e)
+    }
+  }
+
 
 
 
@@ -2685,9 +2718,9 @@ async eralend_repayBorrow() {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('1100_era_keys.csv'); 
+    // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[2];
+    // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
 
 })();

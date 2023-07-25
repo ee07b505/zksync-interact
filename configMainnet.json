@@ -2,7 +2,7 @@
   "VERSION": "ZKSYNC Mainnet",
   "ADDRESS": "",
   "PRIVATE_KEY": "",
-  "ZK_RPC_URL": "https://rpc.ankr.com/zksync_era",
+  "ZK_RPC_URL": "https://rpc.ankr.com/zksync_era/90b59bb24a0faa9a484ee0569337a891dca8951d70409ef38c7b5c1e90e28a78",
   "ETH_RPC_URL": "https://mainnet.infura.io/v3/e014a014a2c0479e957e62810307114b",
   "SYNCSWAP_CLASSIC_POOL_FACTORY_ADDRESS": "0xf2DAd89f2788a8CD54625C60b55cD3d2D0ACa7Cb",
   "SYNCSWAP_ROUTER_ADDRESS": "0x2da10A1e27bF85cEdD8FFb1AbBe97e53391C0295",
@@ -14,5 +14,5 @@
   "SpaceFi_Router_Contract": "0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d",
   "Mute_Router_Contract": "0x8B791913eB07C32779a16750e3868aA8495F5964",
   "gasPriceLimit": "20",
-  "csvFile":"1100_era_keys.csv"
+  "csvFile":"1500_era_keys.csv"
 }
