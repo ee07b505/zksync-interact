@@ -522,7 +522,7 @@ async Mint_ZKAPES_Coin(){
  }
 
 
- async Transfer_80_percent_Balance_To_Another_Account(){
+ async Transfer__percent_Balance_To_Another_Account(){
 
     console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account is running...`);
     let Hash
@@ -570,6 +570,26 @@ async Mint_ZKAPES_Coin(){
 
  }
 
+
+
+ async Transfer_Part_Balance_To_Another_Account_L2(){
+
+    console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2 is running...`);
+    let Hash
+    try {
+    const amountETH  = generateRandomAmount(0.0301,0.0315,5)
+    console.log(`[${this.name}] transfer  amountETH: ${amountETH} to ${this.okxAddress}`)
+    Hash = await this.transferEthOnL2(this.okxAddress,amountETH)
+    console.log(`https://explorer.zksync.io/tx/${Hash} `)
+    } catch (error) {
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2: ${error}`);
+        this.failTask(1, error)
+        return;
+    }
+    await this.completeTask(1, Hash);
+
+
+ }
 
  async Transfer_All_ZKAPE_To_Another_Account(){
 
