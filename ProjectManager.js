@@ -1,9 +1,12 @@
-const {ZKSYNC} = require('./ZKSYNC');
+const { ZKSYNC } = require('./ZKSYNC');
 const fs = require('fs');
 const util = require('util');
 function sleep(seconds) {
     return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 }
+
+
+
 
 
 class ProjectManager {
@@ -39,14 +42,16 @@ class ProjectManager {
             console.log(`sleep ${totalSeconds} seconds ...`)
             //await sleep(totalSeconds)
 
+
+
         }
     }
 
     async loadState() {
         try {
             for (const account of this.accounts) {
-                const { Num, OkxAdress,address, privateKey } = account;
-                const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+                const { Num, OkxAdress, address, privateKey } = account;
+                const project = new ZKSYNC(Num, address, privateKey, OkxAdress);
                 project.loadState();
                 this.projects.set(Num, project);
             }
