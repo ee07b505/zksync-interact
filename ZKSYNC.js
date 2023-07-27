@@ -111,7 +111,7 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks = ["Check_Eralend_nBalance"];
+        this.tasks = ["Transfer_Zero_USDT_TO_ALEX"];
         this.completedTasks = new Array(this.tasks.length).fill(false);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -773,7 +773,7 @@ class ZKSYNC {
     }
 
 
-      async Eralend_Stellar_Withdraw() {
+    async Eralend_Stellar_Withdraw() {
 
         console.log(`[${this.Num}][${this.name}]Eralend_Stellar_Withdraw is running...`);
         let Hash
@@ -788,7 +788,7 @@ class ZKSYNC {
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Eralend_Stellar_Withdraw: ${error}`);
             this.failTask(1, error)
-        } 
+        }
         await this.completeTask(1, Hash);
 
     }
@@ -806,7 +806,7 @@ class ZKSYNC {
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Eralend_Stellar_Withdraw: ${error}`);
             this.failTask(1, error)
-        } 
+        }
         await this.completeTask(1, Hash);
 
     }
@@ -822,6 +822,24 @@ class ZKSYNC {
 
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] Approve_PPT_To_Syncswap: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
+
+    }
+
+    async Transfer_Zero_USDT_TO_ALEX() {
+
+        console.log(`[${this.Num}][${this.name}]Transfer_Zero_USDT_TO_ALEX is running...`);
+        let Hash
+        try {
+            await checkMainnetGasPrice();
+            Hash = await this.transfer_0_usdt_to_axel()
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Transfer_Zero_USDT_TO_ALEX: ${error}`);
             this.failTask(1, error)
             return;
         }
@@ -2537,7 +2555,7 @@ class ZKSYNC {
 
             return "HasBalance"
 
-        }else{
+        } else {
             return "NoBalance"
         }
 
@@ -2547,20 +2565,20 @@ class ZKSYNC {
 
 
     async checkEralendBorrow() {
-        const abi = ['function repayBorrow() external payable','function getAccountSnapshot(address) external view returns (uint, uint, uint, uint)']
+        const abi = ['function repayBorrow() external payable', 'function getAccountSnapshot(address) external view returns (uint, uint, uint, uint)']
         const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
         const contract = new zksync.Contract(contractAddress, abi, this.signer);
         const snapshot = await contract.getAccountSnapshot(this.signer.address);
         console.log(`${snapshot[2]} wei to repay \n`)
         console.log(`${ethers.utils.formatEther(snapshot[2])} ETH to repay`)
         // snapshot[2] is a bignumber of borrowBalance, if it is bigger than 0 ETH, repay it.
-        if (ethers.utils.formatEther(snapshot[2])>0.01  ) {
+        if (ethers.utils.formatEther(snapshot[2]) > 0.01) {
 
             fs.appendFileSync("./Log/eralend.log", `[${this.Num}] Address:[${this.name}] has balance to withdraw on eralend   \n   [${this.privateKey}] \n  `)
 
             return "HasBalance"
 
-        }else{
+        } else {
             return "NoBalance"
         }
 
@@ -2592,8 +2610,7 @@ class ZKSYNC {
                 console.log('EraLend nETH 余额', ethers.utils.formatUnits(nETHBalance, 8));
                 amount = ethers.utils.formatUnits(nETHBalance.div(ethers.BigNumber.from(50)), 8);
                 console.log('EraLend 取回', `${amount} ETH`);
-                if(amount<0.025)
-                {throw new error(`${this.signer.add }   amount too small`)}
+                if (amount < 0.025) { throw new error(`${this.signer.add}   amount too small`) }
                 //amount =  ethers.utils.parseEther("0.0299859");
                 amount = ethers.utils.parseEther(amount);
                 // 总量超过 1u 证明已经添加过，取出来
@@ -2761,7 +2778,7 @@ class ZKSYNC {
     }
 
     async eralend_repayBorrow() {
-        const abi = ['function repayBorrow() external payable','function getAccountSnapshot(address) external view returns (uint, uint, uint, uint)']
+        const abi = ['function repayBorrow() external payable', 'function getAccountSnapshot(address) external view returns (uint, uint, uint, uint)']
         const contractAddress = '0x1BbD33384869b30A323e15868Ce46013C82B86FB';
         const contract = new zksync.Contract(contractAddress, abi, this.signer);
         const snapshot = await contract.getAccountSnapshot(this.signer.address);
@@ -2769,13 +2786,13 @@ class ZKSYNC {
 
         // snapshot[2] is a bignumber of borrowBalance, if it is bigger than 0 ETH, repay it.
         if (snapshot[2] > 503582) {
-       
-        let gasLimit = await contract.estimateGas.repayBorrow({ value:snapshot[2] });
-        gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
-        let response = await contract.repayBorrow({ value:snapshot[2],gasLimit });
-        let tx = await response.wait();
-        console.log('EraLend 还款成功', tx.transactionHash);
-        return tx.transactionHash;
+
+            let gasLimit = await contract.estimateGas.repayBorrow({ value: snapshot[2] });
+            gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
+            let response = await contract.repayBorrow({ value: snapshot[2], gasLimit });
+            let tx = await response.wait();
+            console.log('EraLend 还款成功', tx.transactionHash);
+            return tx.transactionHash;
         }
         console.log("EraLend 没有借款可供还款")
         return "NoBorrow";
@@ -2820,11 +2837,11 @@ class ZKSYNC {
         }
     }
 
-    async transfer_0_usdt_to_axel(){
+    async transfer_0_usdt_to_axel() {
         //tranfer 0 usdt to axel
-        const address_axel="0x8303b802A00F998B21A8Bcb48C195121E26B6e6b"
-        const address_USDT="0x493257fD37EDB34451f62EDf8D2a0C418852bA4C";
-        const contract_USDT= new ethers.Contract(address_USDT, erc20Abi, this.signer);
+        const address_axel = "0x8303b802A00F998B21A8Bcb48C195121E26B6e6b"
+        const address_USDT = "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C";
+        const contract_USDT = new ethers.Contract(address_USDT, erc20Abi, this.signer);
         const gasEsitmate = await contract_USDT.estimateGas.transfer(address_axel, 0);
         console.log("gasLimit estimate is", gasEsitmate.toString())
         const gasLimit = generateRandomAmount(1000000, 1020000, 0)
@@ -2849,7 +2866,7 @@ class ZKSYNC {
 
     // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[0];
+    // const { Num, OkxAdress,address, privateKey } = accounts[1];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
     // await project.transfer_0_usdt_to_axel()
 
