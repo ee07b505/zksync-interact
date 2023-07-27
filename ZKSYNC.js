@@ -2820,6 +2820,22 @@ class ZKSYNC {
         }
     }
 
+    async transfer_0_usdt_to_axel(){
+        //tranfer 0 usdt to axel
+        const address_axel="0x8303b802A00F998B21A8Bcb48C195121E26B6e6b"
+        const address_USDT="0x493257fD37EDB34451f62EDf8D2a0C418852bA4C";
+        const contract_USDT= new ethers.Contract(address_USDT, erc20Abi, this.signer);
+        const gasEsitmate = await contract_USDT.estimateGas.transfer(address_axel, 0);
+        console.log("gasLimit estimate is", gasEsitmate.toString())
+        const gasLimit = generateRandomAmount(1000000, 1020000, 0)
+        const approveTx = await contract_USDT.transfer(address_axel, 0, { gasLimit });
+        console.log(`Transaction approved: ${approveTx.hash}`);
+        await approveTx.wait();
+        return approveTx.hash
+
+
+
+    }
 
 
 
@@ -2835,7 +2851,7 @@ class ZKSYNC {
 
     // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.eraLend_withdraw()
+    // await project.transfer_0_usdt_to_axel()
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
