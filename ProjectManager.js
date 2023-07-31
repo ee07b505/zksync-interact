@@ -16,8 +16,8 @@ class ProjectManager {
         this.currentProject = null;
     }
     async start() {
+        await this.loadState();
         while (true) {
-            await this.loadState();
 
             const unfinishedProjects = Array.from(this.projects.values()).filter((project) => !project.isCompleted());
 
@@ -27,8 +27,8 @@ class ProjectManager {
             }
 
             const project = unfinishedProjects[Math.floor(Math.random() * unfinishedProjects.length)];
+            project.loadState();
             this.currentProject = project;
-
             const task = project.getNextTask();
             if (task) {
                 await project[task]();

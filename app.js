@@ -29,7 +29,7 @@ const {
         short: "f",
         default: '',
       },
-      numProcess: {
+      numsProcess: {
         type: "string",
         short: "c",
         default: "1",
@@ -39,8 +39,7 @@ const {
   });
 
 const fileName = file_name?file_name:csvFile;
-const numProcess = (+numsProcess)||numCPUs;
-
+const numProcess = numsProcess?+numsProcess:numCPUs;
 
 
 async function main(){

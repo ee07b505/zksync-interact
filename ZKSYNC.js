@@ -15,7 +15,7 @@ const util = require('util');
 var Web3 = require('web3');
 const { round_down_up_fromback, sleep, generateRandomAmount } = require("./utils/utils.js");
 const { Console, error } = require("console");
-
+const path = require('path');
 const {
     VERSION,
     ADDRESS,
@@ -84,8 +84,18 @@ async function checkERC20Balances(signer, tokenAddress, address = null) {
     console.log("The  balance of swapped token  is: ", TOKENBalance);
     return expandedWTOKENBalanceBefore;
 }
+const currentDate = new Date();
 
+// 获取年份的第一天
+const yearStart = new Date(currentDate.getFullYear(), 0, 1);
 
+// 计算当前日期与年初的时间差
+const timeDiff = currentDate.getTime() - yearStart.getTime();
+
+// 计算当前周数
+const weekNumber = Math.ceil(timeDiff / (7 * 24 * 60 * 60 * 1000));
+
+const cachePath = path.join(process.cwd(), 'cache');
 
 
 
@@ -99,7 +109,7 @@ class ZKSYNC {
         this.privateKey = privateKey;
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
-        this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());;
+        this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
         //this.tasks = [
         //    "deposit_All_funds_L1_to_L2",
         //    "Swap_Usdc_On_Syncswap",
@@ -111,7 +121,8 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks = ["Check_Eralend_nBalance"];
+        this.tasks = ["Interact_Self_Built_Contract"];
+        this.taskName = this.tasks[0] + weekNumber;        
         this.completedTasks = new Array(this.tasks.length).fill(false);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
@@ -868,25 +879,37 @@ class ZKSYNC {
     }
 
     async saveState() {
-        const data = JSON.stringify({ completedTasks: this.completedTasks });
-        const path = `./projects/${this.name}.json`;
-        await fs.promises.writeFile(path, data);
+        const logPath = path.join(cachePath, `${this.name}.json`);
+        let content = fs.readFileSync(logPath);
+        content = JSON.parse(content);
+        content[this.taskName] = this.completedTasks;
+        const data = JSON.stringify(content);
+        console.log(`[${this.name}] Saving project state... ${data}`);
+        await fs.promises.writeFile(logPath, data);
     }
 
     loadState() {
         try {
-            const path = `./projects/${this.name}.json`;
+            const logPath = path.join(cachePath, `${this.name}.json`);
             let data;
-            if (fs.existsSync(path)) {
-                data = fs.readFileSync(path);
-            } else {
+            if (fs.existsSync(logPath)) {
+                data = fs.readFileSync(logPath);
+                if(!JSON.parse(data)[this.taskName]){
+                    console.log(`[${this.name}] Initializing project state...`);
+                    data=JSON.parse(data)
+                    const initialData = JSON.stringify({ ...data,[this.taskName]: this.completedTasks });
+                    fs.writeFileSync(logPath, initialData);
+                    data = initialData;
+                }
+
+            } 
+            else {
                 console.log(`[${this.name}] Initializing project state...`);
-                const initialData = JSON.stringify({ completedTasks: this.completedTasks });
-                fs.writeFileSync(path, initialData);
+                const initialData = JSON.stringify({ [this.taskName]: this.completedTasks });
+                fs.writeFileSync(logPath, initialData);
                 data = initialData;
             }
-            const { completedTasks } = JSON.parse(data);
-            this.completedTasks = completedTasks;
+            this.completedTasks = JSON.parse(data)[this.taskName];
 
         }
         catch (e) {
