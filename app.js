@@ -29,7 +29,7 @@ const {
         short: "f",
         default: '',
       },
-      numsProcess: {
+      numssProcess: {
         type: "string",
         short: "c",
         default: "1",
@@ -95,7 +95,7 @@ async function main(){
           console.log(`子进程 ${workerId} 执行任务`);
           const projectManager = new ProjectManager(splitArray[workerId - 1]);
           await projectManager.start();
-          console.log(`${ splitArray[workerId - 1][0].Num}-${ splitArray[workerId - 1][splitArray[workerId - 1].length - 1].Num} 的任务执行完毕`)
+          console.log(`${ splitArray[workerId-1][0].Num}-${ splitArray[workerId - 1][splitArray[workerId - 1].length - 1].Num} 的任务执行完毕`)
           process.exit()
         };
       
