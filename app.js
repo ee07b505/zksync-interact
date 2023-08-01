@@ -51,6 +51,11 @@ async function main(){
       console.log("Now is ",VERSION," verison")
       console.log("Now is ",VERSION," verison")
       console.log("Now is ",VERSION," verison")
+      const cachePath = path.join(process.cwd(), 'cache');
+      if (!fs.existsSync(cachePath)) {
+          fs.mkdirSync(folderPath);
+          console.log('创建cache文件夹创建！');
+      }
       eth_provider.getNetwork().then(network => {
           console.log("Connected to ETH Mainnet:", network);
       }).catch(error => {
