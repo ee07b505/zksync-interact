@@ -675,6 +675,7 @@ class ZKSYNC {
         console.log(`[${this.Num}][${this.name}]Interact_Self_Built_Contract is running...`);
         let Hash
         try {
+            await checkMainnetGasPrice();
             Hash = await this.interactSelfBuiltContract()
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
