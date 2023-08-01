@@ -3,6 +3,7 @@ const fs = require("fs");
 const { parseArgs } = require("node:util") ;
 const cluster = require('cluster');
 const numCPUs = require('os').cpus().length;
+const path = require('path');
 
 
 //const config = JSON.parse(fs.readFileSync("configTestnet.json", "utf-8"));
