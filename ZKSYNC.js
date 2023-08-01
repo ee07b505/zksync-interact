@@ -98,7 +98,6 @@ const weekNumber = Math.ceil(timeDiff / (7 * 24 * 60 * 60 * 1000));
 const cachePath = path.join(process.cwd(), 'cache');
 
 
-
 class ZKSYNC {
     constructor(Num, address, privateKey, OkxAdress) {
         this.zk_provider = zk_provider;
@@ -2889,9 +2888,9 @@ class ZKSYNC {
 
     // const accounts =  await ethAccount('keys1.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[1];
+    // const { Num, OkxAdress,address, privateKey } = accounts[10];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.transfer_0_usdt_to_axel()
+    // await project.Interact_Self_Built_Contract()
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };

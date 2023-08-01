@@ -29,7 +29,7 @@ const {
         short: "f",
         default: '',
       },
-      numssProcess: {
+      numsProcess: {
         type: "string",
         short: "c",
         default: "1",
@@ -99,7 +99,7 @@ async function main(){
           process.exit()
         };
       
-        // 模拟执行任务
+        // 执行任务
         executeTask();
 
 
