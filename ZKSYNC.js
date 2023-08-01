@@ -120,7 +120,7 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks = ["Interact_Self_Built_Contract"];
+        this.tasks = ["Syncswap_Swap_Pawpoints_to_ETH"];
         this.taskName = this.tasks[0] + weekNumber;        
         this.completedTasks = new Array(this.tasks.length).fill(false);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
@@ -462,6 +462,35 @@ class ZKSYNC {
             return;
         }
         await this.completeTask(2, Hash);
+    }
+
+    async Syncswap_Swap_Pawpoints_to_ETH() {
+
+        console.log(`[${this.Num}][${this.name}] Syncswap_Swap_Pawpoints_to_ETH is running...`);
+        let Hash
+        try {
+            const Pawpoints_ADDRESS = '0x030B8487c5f5b77193b53e56F951865B79358e30'
+            const TOKEN = new Contract(Pawpoints_ADDRESS, erc20Abi, this.signer)
+            const tokenDecimal = await TOKEN.decimals()
+            const expandedWTOKENBalanceBefore = await TOKEN.balanceOf(this.signer.address);
+            const TOKENBalance = Number(
+                ethers.utils.formatUnits(expandedWTOKENBalanceBefore, tokenDecimal)
+            );
+            if (TOKENBalance < 1000) {
+                console.log(`[${this.name}] do not have Pawpoints`)
+                Hash = 'NoPawpoints'
+                await this.completeTask(1, Hash);
+                return "NoPawpoints"
+            }
+            await checkMainnetGasPrice();
+            Hash = await this.sync_swap_any_to_any(Pawpoints_ADDRESS, wETH_ADDRESS, "-1", 5)
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Syncswap_Swap_Pawpoints_to_ETH: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
     }
 
     async Mint_ZKAPES_Coin() {

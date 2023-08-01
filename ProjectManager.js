@@ -36,8 +36,8 @@ class ProjectManager {
                 console.log(`All tasks completed.`);
                 break;
             }
-            const minSeconds = 0.1 * 60;
-            const maxSeconds = 0.2 * 60;
+            const minSeconds = 1 * 60;
+            const maxSeconds = 2 * 60;
             const totalSeconds = Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds);//减去4秒
             console.log(`sleep ${totalSeconds} seconds ...`)
             await sleep(totalSeconds)
