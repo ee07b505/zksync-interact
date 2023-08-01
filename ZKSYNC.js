@@ -2292,7 +2292,7 @@ class ZKSYNC {
         );
 
         console.log("gasLimit estimate is", gasEstimate);
-        const gasLimit = Math.floor(+gasEstimate.toString() * 0.5);
+        const gasLimit = Math.floor(+gasEstimate.toString() * 0.7);
         console.log("gasLimit is", gasLimit);
 
         const response = await router.swap(
@@ -2310,7 +2310,7 @@ class ZKSYNC {
         console.log("Swap submitted from on wallet ", this.address, ", hash: ", response.hash)
         const wait = await response.wait();
         console.log("Swap on wallet ", this.address, " included, gas used: ", wait.gasUsed.toString())
-        await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
+        //await this.revokeTokenApproval(token_in, SYNCSWAP_ROUTER_ADDRESS);
         return response.hash
     }
 
