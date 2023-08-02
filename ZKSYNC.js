@@ -120,7 +120,7 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks = ["Syncswap_Swap_Pawpoints_to_ETH"];
+        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
         this.taskName = this.tasks[0] + weekNumber;        
         this.completedTasks = new Array(this.tasks.length).fill(false);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
@@ -562,12 +562,12 @@ class ZKSYNC {
     }
 
 
-    async Transfer__percent_Balance_To_Another_Account() {
+    async Leave_0015e_Transfer_To_Another_Account() {
 
-        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account is running...`);
+        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Leave_0015e_Transfer_To_Another_Account is running...`);
         let Hash
         try {
-            const amountLeave = generateRandomAmount(0.0145, 0.0155, 5)
+            const amountLeave = generateRandomAmount(0.0145, 0.015, 5)
             const balance = await zk_provider.getBalance(this.signer.address)
             let amountETH = ethers.utils.formatEther(balance)
             amountETH = Number(amountETH) - amountLeave
@@ -582,7 +582,7 @@ class ZKSYNC {
 
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
-            console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_80_percent_Balance_To_Another_Account: ${error}`);
+            console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Leave_0015e_Transfer_To_Another_Account: ${error}`);
             this.failTask(1, error)
             return;
         }
