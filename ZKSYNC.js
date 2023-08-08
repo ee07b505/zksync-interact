@@ -48,7 +48,6 @@ const MuteFactoryABI = JSON.parse(fs.readFileSync("./ABIs/MuteFactoryABI.json", 
 const MutePairABI = JSON.parse(fs.readFileSync("./ABIs/MutePairABI.json", "utf-8"));
 const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "utf-8"));
 
-
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
 //const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
 const zk_provider = new zksync.Provider(ZK_RPC_URL);
@@ -2905,6 +2904,48 @@ class ZKSYNC {
 
 
     }
+    async send_dmail() {
+        const DMAIL_CONTRACT="0x981F198286E40F9979274E0876636E9144B8FB8E"
+        const DMAIL_ABI = [
+            {
+              "type": "function",
+              "name": "send_mail",
+              "inputs": [
+                {
+                  "name": "to",
+                  "type": "string"
+                },
+                {
+                  "name": "subject",
+                  "type": "string"
+                }
+              ],
+              "outputs": [],
+              "stateMutability": "nonpayable"
+            }
+          ]
+          
+        const Dmail_contract = new ethers.Contract(DMAIL_CONTRACT, DMAIL_ABI, this.signer);
+        // const tx = {
+        //   from: this.address,
+        //   to: ethers.utils.getAddress(DMAIL_CONTRACT),
+        //   gasLimit: 1000000,
+        //   gasPrice: ethers.utils.parseUnits("0.25", "gwei"),
+        // }
+    
+        // const data = Dmail_contract.interface.encodeFunctionData("send_mail", [
+        //   `${this.address}@dmail.ai`,
+        //   `${this.address}@dmail.ai`
+        // ]);
+        // tx.data = data;
+        let gasLimit = await Dmail_contract.estimateGas.send_mail(`${this.address}@dmail.ai`,`${this.address}@dmail.ai`)
+        let response = await Dmail_contract.send_mail(`${this.address}@dmail.ai`,`${this.address}@dmail.ai`);
+        console.log(`${this.address}@dmail.ai`)
+        let tx = await response.wait();
+        console.log('Dmail 发送成功', tx.transactionHash);
+        console.log(`https://explorer.zksync.io/tx/${tx.transactionHash}`)
+        return tx.transactionHash;
+      }
 
 
 
@@ -2913,14 +2954,14 @@ class ZKSYNC {
 
 
 
-(async () => {
-    // const {ethAccount} =require("./account/encrypto")
+// (async () => {
+//     const {ethAccount} =require("./account/encrypto")
 
-    // const accounts =  await ethAccount('keys1.csv'); 
+//     const accounts =  await ethAccount('keys.csv'); 
 
-    // const { Num, OkxAdress,address, privateKey } = accounts[10];
-    // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.Interact_Self_Built_Contract()
+//     const { Num, OkxAdress,address, privateKey } = accounts[0];
+//     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+//     await project.send_dmail()
 
-})();
+// })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
