@@ -2268,7 +2268,7 @@ class ZKSYNC {
                 console.log("Not authorized, approving...");
                 const gasEsitmate = await token_in_contract.connect(this.signer).estimateGas.approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256);
                 console.log("gasLimit estimate is", gasEsitmate)
-                const gasLimit = Math.floor(+gasEsitmate.toString() * 0.7);
+                const gasLimit = Math.floor(+gasEsitmate.toString());
                 const approveTx = await token_in_contract.connect(this.signer).approve(SYNCSWAP_ROUTER_ADDRESS, ethers.constants.MaxUint256, { gasLimit });
                 await approveTx.wait();
                 console.log(`Transaction approved: ${approveTx.hash}`);
