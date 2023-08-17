@@ -119,7 +119,7 @@ class ZKSYNC {
         //];
         //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
         //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
-        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
+        this.tasks = ["Random_Approve_To_Defi_Router_Address","Transfer_All_Balance_To_Self_L2"];
         this.taskName = this.tasks[0] + weekNumber;        
         this.completedTasks = new Array(this.tasks.length).fill(false);
         // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
