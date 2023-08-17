@@ -596,7 +596,7 @@ class ZKSYNC {
         console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2 is running...`);
         let Hash
         try {
-
+            await checkMainnetGasPrice();
             Hash = await this.transferEthOnL2(this.address, -1)
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
         } catch (error) {
@@ -741,6 +741,7 @@ class ZKSYNC {
         console.log(`[${this.Num}][${this.name}]random_approve_to_defi_router_address is running...`);
         let Hash
         try {
+            await checkMainnetGasPrice();
             Hash = await this.randomApprove()
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
