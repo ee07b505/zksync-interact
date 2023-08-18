@@ -2314,6 +2314,136 @@ class ZKSYNC {
         return response.hash
     }
 
+    async zklite_deposit(){
+        const token = "ETH";
+        const networkName = "mainnet";
+        const zkSyncProvider = await utils.getZkSyncProvider(networkName);
+        const ethersProvider = eth_provider;
+        const ethWallet = new ethers.Wallet(
+            this.privateKey,
+            ethersProvider
+        );
+        const ethWalletInitialBalance = await ethWallet.getBalance();
+        console.log(
+            ` ${ethWallet.address} Ethereum  balance on mainnet is: ${ethers.utils.formatEther(
+                ethWalletInitialBalance
+            )}`
+        );
+        const ethWalletBalanceinEther = ethers.utils.formatEther(ethWalletInitialBalance);
+        const zkliteWallet = await utils.initAccount(
+            ethWallet,
+            zkSyncProvider
+        );
+        //amountToDeposit =(ethWalletBalanceinEther-0.005)
+        const amountToReserve = generateRandomAmount(0.004,0.005,6)
+         const amountToDeposit = Number(ethWalletBalanceinEther)-amountToReserve;
+        if (amountToDeposit<0){
+            console.log("Not enough ETH in wallet, The task is com");
+            throw new  Error("Not enough ETH in wallet, The task is com")
+        }
+        console.log(`Depositing ${amountToDeposit} ETH to zkSync lite...`);
+        console.log("Depositing...");
+        await utils.depositToZkSync(zkliteWallet, token, amountToDeposit.toString());
+        await utils.displayZkSyncBalance(zkliteWallet);
+        await utils.registerAccount(zkliteWallet);
+        const balanceInwei = await zkliteWallet.getBalance('ETH');
+        const committedETHBalance = ethers.utils.formatEther(balanceInwei);
+        if (committedETHBalance>0){
+            return "SuccessDeposit"
+        }
+    
+    }
+    async zklite_mintNFT(){
+        const token = "ETH";
+        const networkName = "mainnet";
+        const zkSyncProvider = await utils.getZkSyncProvider(networkName);
+        const ethersProvider = eth_provider
+        const ethWallet = new ethers.Wallet(
+            this.privateKey,
+            ethersProvider
+        );
+
+        const zkliteWallet = await utils.initAccount(
+            ethWallet,
+            zkSyncProvider
+        );
+
+
+        const balanceInwei = await zkliteWallet.getBalance('ETH');
+        const committedETHBalance = ethers.utils.formatEther(balanceInwei);
+        console.log("committedETHBalance is: ", committedETHBalance.toString());
+
+        const MintFee = await utils.getFee(
+            "MintNFT",
+            ethWallet.address,
+            token,
+            zkSyncProvider
+        );
+        console.log("MintFee is: ", MintFee.toString());
+        const amountToMint = Number(committedETHBalance)-MintFee
+
+        if (amountToMint<0){
+            console.log("Not enough ETH in wallet to Mint")
+            return "NoEnoughETH"
+        }
+        console.log("Minting NFT...");
+        await utils.displayZkSyncBalance(zkliteWallet);
+        let NFTtx = await utils.Mint_NFT(zkliteWallet);
+        NFTtx = NFTtx.split(":")[1];
+        NFTtx = "0x" + NFTtx; 
+        console.log(`https://zkscan.io/explorer/transactions/${NFTtx}`);
+        return NFTtx;
+
+    }
+
+    async zklite_withdraw(){
+        const token = "ETH";
+        const networkName = "mainnet";
+        const zkSyncProvider = await utils.getZkSyncProvider(networkName);
+        const ethersProvider = eth_provider;
+        const ethWallet = new ethers.Wallet(
+            this.privateKey,
+            ethersProvider
+        );
+        const ethWalletInitialBalance = await ethWallet.getBalance();
+        console.log(
+            ` ${ethWallet.address} Ethereum  balance on mainnet is: ${ethers.utils.formatEther(
+                ethWalletInitialBalance
+            )}`
+        );
+
+        const zkliteWallet = await utils.initAccount(
+            ethWallet,
+            zkSyncProvider
+        );
+
+        const balanceInwei = await zkliteWallet.getBalance('ETH');
+        const committedETHBalance = ethers.utils.formatEther(balanceInwei);
+        console.log("committedETHBalance is: ", committedETHBalance.toString());
+        const amountToReserve = generateRandomAmount(0.0003,0.0004,6)
+        console.log("amountToReserve is: ", amountToReserve.toString());
+        const withdrawFee = await utils.getFee(
+            "Withdraw",
+            ethWallet.address,
+            token,
+            zkSyncProvider
+        );
+        console.log("withdrawFee is: ", withdrawFee.toString());
+        const amountToWithdraw = Number(committedETHBalance)-amountToReserve-withdrawFee
+        console.log(`Withdrawing ${amountToWithdraw} ETH to zkSync lite...`);
+
+        if (amountToWithdraw<0){
+            throw new  Error(" Not enough ETH in wallet, The task is com")
+        }
+        await utils.displayZkSyncBalance(zkliteWallet);
+        await utils.withdrawToEthereum(zkliteWallet, token, amountToWithdraw.toString());
+        await utils.displayZkSyncBalance(zkliteWallet);
+    
+    }
+
+
+   
+
     async zklite_interact(toAddress) {
         const token = "ETH";
         const networkName = "mainnet";
@@ -2530,6 +2660,20 @@ class ZKSYNC {
         return tx.hash
 
     }
+
+    async mintL0NFT_crossChain() {
+        // L0NFTABI   is mint() function
+        const L0NFTABI = ["function mint()", "function crossChain(uint16 dstChainId, uint256 tokenId) public payable"]
+        const L0contract = new ethers.Contract('0x31DCD96f29BD32F3a1856247846E9d2f95C2b639', L0NFTABI, this.signer);
+        const tx = await L0contract.mint()
+        const response = await tx.wait()
+        const tokenId = parseInt(response?.logs[1]?.topics[3])
+        const gasLimit = await L0contract.estimateGas.crossChain(109, tokenId, { value: ethers.utils.parseEther('0.0003') })//layerzero 跨链信息费用，一般是0.0002x,多了的会返回。
+        console.log(gasLimit.toString())
+        const tx2 = await L0contract.crossChain(109, tokenId, { value: ethers.utils.parseEther('0.0003'), gasLimit: Math.floor(gasLimit.toNumber() * 0.6) })
+        return tx2.hash
+    }
+
 
     async mintL0NFT_crossChain() {
         // L0NFTABI   is mint() function
@@ -2955,14 +3099,14 @@ class ZKSYNC {
 
 
 
-// (async () => {
-//     const {ethAccount} =require("./account/encrypto")
+(async () => {
+    // const {ethAccount} =require("./account/encrypto")
 
-//     const accounts =  await ethAccount('keys.csv'); 
+    // const accounts =  await ethAccount('keys.csv'); 
 
-//     const { Num, OkxAdress,address, privateKey } = accounts[0];
-//     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-//     await project.send_dmail()
+    // const { Num, OkxAdress,address, privateKey } = accounts[6];
+    // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.zklite_deposit()
 
-// })();
+})();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
