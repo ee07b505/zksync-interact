@@ -834,7 +834,7 @@ class ZKSYNC {
 
 
 
-    async Eralend_Stellar_Deposit() {
+     async Eralend_Stellar_Deposit() {
 
         console.log(`[${this.Num}][${this.name}]Eralend_Stellar_Deposit is running...`);
         let Hash
@@ -2670,18 +2670,6 @@ class ZKSYNC {
     }
 
 
-    async mintL0NFT_crossChain() {
-        // L0NFTABI   is mint() function
-        const L0NFTABI = ["function mint()", "function crossChain(uint16 dstChainId, uint256 tokenId) public payable"]
-        const L0contract = new ethers.Contract('0x31DCD96f29BD32F3a1856247846E9d2f95C2b639', L0NFTABI, this.signer);
-        const tx = await L0contract.mint()
-        const response = await tx.wait()
-        const tokenId = parseInt(response?.logs[1]?.topics[3])
-        const gasLimit = await L0contract.estimateGas.crossChain(109, tokenId, { value: ethers.utils.parseEther('0.0003') })//layerzero 跨链信息费用，一般是0.0002x,多了的会返回。
-        console.log(gasLimit.toString())
-        const tx2 = await L0contract.crossChain(109, tokenId, { value: ethers.utils.parseEther('0.0003'), gasLimit: Math.floor(gasLimit.toNumber() * 0.6) })
-        return tx2.hash
-    }
 
     async randomApprove() {
         try {
@@ -3276,7 +3264,7 @@ async function claim_karatdao_airdrop() {
     // const accounts =  await ethAccount('keys.csv'); 
     // const { Num, OkxAdress,address, privateKey } = accounts[6];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.()
+    // await project.claim_karatdao_airdrop()
     //await claim_karatdao_airdrop()
 
 
