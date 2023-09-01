@@ -108,22 +108,10 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        //this.tasks = [
-        //    "deposit_All_funds_L1_to_L2",
-        //    "Swap_Usdc_On_Syncswap",
-        //    "Swap_Usdc_On_Mute",
-        //    "Swap_Usdc_On_Spacefi",
-        //    "Mint_NFT_On_Mintsquare",
-        //    "Swap_Usdc_to_Target_On_Syncswap",
-        //    "Add_Liquidity_On_Syncswap"
-        //];
-        //this.tasks = ["Revoke_Usdc_On_Syncswap","Bridge_Orbiter_ERA_to_ETH","Syncswap_Swap_Dogera_to_ETH","Zklite_ActivateAccounts_MintNFT_TransferToOkx"];
-        //this.tasks=["Eralend_Stellar_Deposit","Eralend_Stellar_EnterMarkets","Eralend_Stellar_Borrow"];
         this.tasks = ["Random_Approve_To_Defi_Router_Address","Transfer_All_Balance_To_Self_L2"];
-        this.taskName = this.tasks[0] + weekNumber;        
+        this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
-        // console.log(`[${this.Num}][${this.name}] ZKSYNC task begin`);
-        // console.log(`[${this.Num}][${this.name}] ZKSYNC address, its okx address is : ${this.okxAddress}`);
+
     }
 
 
@@ -146,6 +134,127 @@ class ZKSYNC {
         const randomIndex = Math.floor(Math.random() * remainingRandomTasks.length);
         return remainingRandomTasks[randomIndex];
     }
+
+
+    async Proxy_Function(functionName,execFunctionName,argu=null) {
+        let Hash
+        const index = this.tasks.indexOf(functionName)
+        console.log(`[${this.Num}][${this.name}] ${functionName} is running...`);
+        if (index < 0) {
+            console.log(`${functionName} is not in the task list,please check the task list`)
+            return
+        }
+        try {
+            await checkMainnetGasPrice();
+            if (argu !== null) {
+                Hash = await this[execFunctionName](...argu);
+              } else {
+                Hash = await this[execFunctionName]();
+              }            
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] ${functionName}: ${error}`);
+            this.failTask(index, error)
+            return;
+        }
+        await this.completeTask(index, Hash);
+    }
+    async completeTask(taskNumber, transaction_hash) {
+        const taskName = this.tasks[taskNumber];
+        console.log(`${taskName} is completed`);
+        const offset = 8; // 东八区
+        const currentTime = new Date();
+        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
+        if (transaction_hash == null) {
+            console.log(`[${this.name}] transaction failed: ${taskName}`);
+            fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: transaction failed   @[${currentTimestampInUTC8}]\n`)
+            return;
+        }
+
+
+        console.log(`[${this.name}] Completing task: ${taskName}`);
+        fs.appendFileSync("./Log/task.log", `[${this.Num}] Address:[${this.name}]: Completing No [${taskNumber + 1}] task: [${taskName}] @[${currentTimestampInUTC8}] The transaction is  https://explorer.zksync.io/tx/${transaction_hash} \n`)
+        this.completedTasks[taskNumber] = true;
+        await this.saveState();
+    }
+
+    failTask(taskNumber, error) {
+        const taskName = this.tasks[taskNumber];
+        const offset = 8; // 东八区
+        const currentTime = new Date();
+        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
+        fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: not complete No [${taskNumber + 1}] task [${taskName}]  error:${error} @[${currentTimestampInUTC8}]\n`)
+    }
+
+    isCompleted() {
+        return this.completedTasks.every(task => task);
+    }
+
+    async saveState() {
+        const logPath = path.join(cachePath, `${this.name}.json`);
+        let content = fs.readFileSync(logPath);
+        content = JSON.parse(content);
+        content[this.taskName] = this.completedTasks;
+        const data = JSON.stringify(content);
+        console.log(`[${this.name}] Saving project state... ${data}`);
+        await fs.promises.writeFile(logPath, data);
+    }
+
+    loadState() {
+        try {
+            const logPath = path.join(cachePath, `${this.name}.json`);
+            let data;
+            if (fs.existsSync(logPath)) {
+                data = fs.readFileSync(logPath);
+                if (!JSON.parse(data)[this.taskName]) {
+                    console.log(`[${this.name}] Initializing project state...`);
+                    data = JSON.parse(data)
+                    const initialData = JSON.stringify({ ...data, [this.taskName]: this.completedTasks });
+                    fs.writeFileSync(logPath, initialData);
+                    data = initialData;
+                }
+
+            }
+            else {
+                console.log(`[${this.name}] Initializing project state...`);
+                const initialData = JSON.stringify({ [this.taskName]: this.completedTasks });
+                fs.writeFileSync(logPath, initialData);
+                data = initialData;
+            }
+            this.completedTasks = JSON.parse(data)[this.taskName];
+
+        }
+        catch (e) {
+            console.log(`[${this.name}] Initializing project state error...`);
+        }
+    }
+
+
+    getRemainingTasks() {
+        const remainingTasks = this.tasks.filter((_, i) => !this.completedTasks[i]);
+        return remainingTasks;
+    }
+
+///***************业务逻辑代码***************** */
+///***************业务逻辑代码***************** */
+///***************业务逻辑代码***************** */
+///***************业务逻辑代码***************** */
+
+    async Random_Approve_To_Defi_Router_Address(functionName) {
+        await this.Proxy_Function(functionName,"randomApprove")
+    }
+    async Transfer_All_Balance_To_Self_L2(functionName){
+         await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
+    }
+
+    async Approve_PPT_To_Syncswap(functionName) {
+        await   this.Proxy_Function(functionName,"approve_pawpoints_to_syncswap")
+    }
+
+
+
+
 
     async deposit_All_funds_L1_to_L2() {
         console.log(`[${this.Num}][${this.name}] deposit_All_funds_L1_to_L2 is running...`);
@@ -591,23 +700,8 @@ class ZKSYNC {
     }
 
 
-    async Transfer_All_Balance_To_Self_L2() {
-
-        console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2 is running...`);
-        let Hash
-        try {
-            await checkMainnetGasPrice();
-            Hash = await this.transferEthOnL2(this.address, -1)
-            console.log(`https://explorer.zksync.io/tx/${Hash} `)
-        } catch (error) {
-            console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}] Transfer_All_Balance_To_Self_L2: ${error}`);
-            this.failTask(1, error)
-            return;
-        }
-        await this.completeTask(1, Hash);
 
 
-    }
 
 
 
@@ -736,23 +830,8 @@ class ZKSYNC {
 
 
 
-    async Random_Approve_To_Defi_Router_Address() {
 
-        console.log(`[${this.Num}][${this.name}]random_approve_to_defi_router_address is running...`);
-        let Hash
-        try {
-            await checkMainnetGasPrice();
-            Hash = await this.randomApprove()
-            console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
-        } catch (error) {
-            console.log(`[${this.Num}][${this.name}] random_approve_to_defi_router_address: ${error}`);
-            this.failTask(1, error)
-            return;
-        }
-        await this.completeTask(1, Hash);
-
-    }
 
 
     async Eralend_Stellar_Deposit() {
@@ -851,23 +930,10 @@ class ZKSYNC {
 
     }
 
-    async Approve_PPT_To_Syncswap() {
+   
 
-        console.log(`[${this.Num}][${this.name}]Approve_PPT_To_Syncswap is running...`);
-        let Hash
-        try {
-            await checkMainnetGasPrice();
-            Hash = await this.approve_pawpoints_to_syncswap()
-            console.log(`https://explorer.zksync.io/tx/${Hash} `)
 
-        } catch (error) {
-            console.log(`[${this.Num}][${this.name}] Approve_PPT_To_Syncswap: ${error}`);
-            this.failTask(1, error)
-            return;
-        }
-        await this.completeTask(1, Hash);
 
-    }
 
     async Transfer_Zero_USDT_TO_ALEX() {
 
@@ -887,91 +953,17 @@ class ZKSYNC {
 
     }
 
-    async completeTask(taskNumber, transaction_hash) {
-        const taskName = this.tasks[taskNumber - 1];
-        console.log(`${taskName} is completed`);
-        const offset = 8; // 东八区
-        const currentTime = new Date();
-        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
-        if (transaction_hash == null) {
-            await sleep(120);
-            console.log(`[${this.name}] transaction may succeed ，sleep two minuts for the final results`)
-            const balance = await checkETHBalances(this.signer)
-            if (taskNumber === 1 && balance.gt(0)) {
-                console.log(`[${this.name}] transaction may succeed ，but there is no transaction_hash: ${taskName}`)
-            }
-            else {
-                console.log(`[${this.name}] transaction failed: ${taskName}`);
-                fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: transaction failed   @[${currentTimestampInUTC8}]\n`)
-                return;
-            }
-        }
-
-        console.log(`[${this.name}] Completing task: ${taskName}`);
-        fs.appendFileSync("./Log/task.log", `[${this.Num}] Address:[${this.name}]: Completing No [${taskNumber}] task: [${taskName}] @[${currentTimestampInUTC8}] The transaction is  https://explorer.zksync.io/tx/${transaction_hash} \n`)
-        this.completedTasks[taskNumber - 1] = true;
-        await this.saveState();
-    }
-
-    failTask(taskNumber, error) {
-        const taskName = this.tasks[taskNumber - 1];
-        const offset = 8; // 东八区
-        const currentTime = new Date();
-        const currentTimestampInUTC8 = new Date(currentTime.getTime() + offset * 60 * 60 * 1000).toISOString();
-        fs.appendFileSync("./Log/error.log", `[${this.Num}] Address:[${this.name}]: not complete No [${taskNumber}] task [${taskName}]  error:${error} @[${currentTimestampInUTC8}]\n`)
-    }
-
-    isCompleted() {
-        return this.completedTasks.every(task => task);
-    }
-
-    async saveState() {
-        const logPath = path.join(cachePath, `${this.name}.json`);
-        let content = fs.readFileSync(logPath);
-        content = JSON.parse(content);
-        content[this.taskName] = this.completedTasks;
-        const data = JSON.stringify(content);
-        console.log(`[${this.name}] Saving project state... ${data}`);
-        await fs.promises.writeFile(logPath, data);
-    }
-
-    loadState() {
-        try {
-            const logPath = path.join(cachePath, `${this.name}.json`);
-            let data;
-            if (fs.existsSync(logPath)) {
-                data = fs.readFileSync(logPath);
-                if(!JSON.parse(data)[this.taskName]){
-                    console.log(`[${this.name}] Initializing project state...`);
-                    data=JSON.parse(data)
-                    const initialData = JSON.stringify({ ...data,[this.taskName]: this.completedTasks });
-                    fs.writeFileSync(logPath, initialData);
-                    data = initialData;
-                }
-
-            } 
-            else {
-                console.log(`[${this.name}] Initializing project state...`);
-                const initialData = JSON.stringify({ [this.taskName]: this.completedTasks });
-                fs.writeFileSync(logPath, initialData);
-                data = initialData;
-            }
-            this.completedTasks = JSON.parse(data)[this.taskName];
-
-        }
-        catch (e) {
-            console.log(`[${this.name}] Initializing project state error...`);
-        }
-    }
-
-
-    getRemainingTasks() {
-        const remainingTasks = this.tasks.filter((_, i) => !this.completedTasks[i]);
-        return remainingTasks;
-    }
+   
 
 
 
+    
+
+
+///***************原子交易代码***************** */
+///***************原子交易代码***************** */
+///***************原子交易代码***************** */
+///***************原子交易代码***************** */
 
 
 
@@ -1130,8 +1122,11 @@ class ZKSYNC {
                 from: this.signer.address,
                 to: formattedAddress,
             })
+            console.log("---------------\n")
+            console.log(typeof(amountInEther))
+            console.log("---------------\n")
 
-            if (amountInEther == -1) {
+            if (amountInEther = -1) {
                 let needed = BigNumber.from(gas_estimate).mul(zk_gas).mul(15).div(10)
                 console.log("gas fee needed is", needed.toString())
                 value = round_down_up_fromback(zk_balance.sub(needed)); //May have rounding eerror stuffs here...check again
@@ -2314,7 +2309,7 @@ class ZKSYNC {
         return response.hash
     }
 
-    async zklite_deposit(){
+    async zklite_deposit() {
         const token = "ETH";
         const networkName = "mainnet";
         const zkSyncProvider = await utils.getZkSyncProvider(networkName);
@@ -2335,11 +2330,11 @@ class ZKSYNC {
             zkSyncProvider
         );
         //amountToDeposit =(ethWalletBalanceinEther-0.005)
-        const amountToReserve = generateRandomAmount(0.004,0.005,6)
-         const amountToDeposit = Number(ethWalletBalanceinEther)-amountToReserve;
-        if (amountToDeposit<0){
+        const amountToReserve = generateRandomAmount(0.004, 0.005, 6)
+        const amountToDeposit = Number(ethWalletBalanceinEther) - amountToReserve;
+        if (amountToDeposit < 0) {
             console.log("Not enough ETH in wallet, The task is com");
-            throw new  Error("Not enough ETH in wallet, The task is com")
+            throw new Error("Not enough ETH in wallet, The task is com")
         }
         console.log(`Depositing ${amountToDeposit} ETH to zkSync lite...`);
         console.log("Depositing...");
@@ -2348,12 +2343,12 @@ class ZKSYNC {
         await utils.registerAccount(zkliteWallet);
         const balanceInwei = await zkliteWallet.getBalance('ETH');
         const committedETHBalance = ethers.utils.formatEther(balanceInwei);
-        if (committedETHBalance>0){
+        if (committedETHBalance > 0) {
             return "SuccessDeposit"
         }
-    
+
     }
-    async zklite_mintNFT(){
+    async zklite_mintNFT() {
         const token = "ETH";
         const networkName = "mainnet";
         const zkSyncProvider = await utils.getZkSyncProvider(networkName);
@@ -2380,9 +2375,9 @@ class ZKSYNC {
             zkSyncProvider
         );
         console.log("MintFee is: ", MintFee.toString());
-        const amountToMint = Number(committedETHBalance)-MintFee
+        const amountToMint = Number(committedETHBalance) - MintFee
 
-        if (amountToMint<0){
+        if (amountToMint < 0) {
             console.log("Not enough ETH in wallet to Mint")
             return "NoEnoughETH"
         }
@@ -2390,13 +2385,13 @@ class ZKSYNC {
         await utils.displayZkSyncBalance(zkliteWallet);
         let NFTtx = await utils.Mint_NFT(zkliteWallet);
         NFTtx = NFTtx.split(":")[1];
-        NFTtx = "0x" + NFTtx; 
+        NFTtx = "0x" + NFTtx;
         console.log(`https://zkscan.io/explorer/transactions/${NFTtx}`);
         return NFTtx;
 
     }
 
-    async zklite_withdraw(){
+    async zklite_withdraw() {
         const token = "ETH";
         const networkName = "mainnet";
         const zkSyncProvider = await utils.getZkSyncProvider(networkName);
@@ -2420,7 +2415,7 @@ class ZKSYNC {
         const balanceInwei = await zkliteWallet.getBalance('ETH');
         const committedETHBalance = ethers.utils.formatEther(balanceInwei);
         console.log("committedETHBalance is: ", committedETHBalance.toString());
-        const amountToReserve = generateRandomAmount(0.0003,0.0004,6)
+        const amountToReserve = generateRandomAmount(0.0003, 0.0004, 6)
         console.log("amountToReserve is: ", amountToReserve.toString());
         const withdrawFee = await utils.getFee(
             "Withdraw",
@@ -2429,20 +2424,20 @@ class ZKSYNC {
             zkSyncProvider
         );
         console.log("withdrawFee is: ", withdrawFee.toString());
-        const amountToWithdraw = Number(committedETHBalance)-amountToReserve-withdrawFee
+        const amountToWithdraw = Number(committedETHBalance) - amountToReserve - withdrawFee
         console.log(`Withdrawing ${amountToWithdraw} ETH to zkSync lite...`);
 
-        if (amountToWithdraw<0){
-            throw new  Error(" Not enough ETH in wallet, The task is com")
+        if (amountToWithdraw < 0) {
+            throw new Error(" Not enough ETH in wallet, The task is com")
         }
         await utils.displayZkSyncBalance(zkliteWallet);
         await utils.withdrawToEthereum(zkliteWallet, token, amountToWithdraw.toString());
         await utils.displayZkSyncBalance(zkliteWallet);
-    
+
     }
 
 
-   
+
 
     async zklite_interact(toAddress) {
         const token = "ETH";
@@ -3050,26 +3045,26 @@ class ZKSYNC {
 
     }
     async send_dmail() {
-        const DMAIL_CONTRACT="0x981F198286E40F9979274E0876636E9144B8FB8E"
+        const DMAIL_CONTRACT = "0x981F198286E40F9979274E0876636E9144B8FB8E"
         const DMAIL_ABI = [
             {
-              "type": "function",
-              "name": "send_mail",
-              "inputs": [
-                {
-                  "name": "to",
-                  "type": "string"
-                },
-                {
-                  "name": "subject",
-                  "type": "string"
-                }
-              ],
-              "outputs": [],
-              "stateMutability": "nonpayable"
+                "type": "function",
+                "name": "send_mail",
+                "inputs": [
+                    {
+                        "name": "to",
+                        "type": "string"
+                    },
+                    {
+                        "name": "subject",
+                        "type": "string"
+                    }
+                ],
+                "outputs": [],
+                "stateMutability": "nonpayable"
             }
-          ]
-          
+        ]
+
         const Dmail_contract = new ethers.Contract(DMAIL_CONTRACT, DMAIL_ABI, this.signer);
         // const tx = {
         //   from: this.address,
@@ -3077,36 +3072,214 @@ class ZKSYNC {
         //   gasLimit: 1000000,
         //   gasPrice: ethers.utils.parseUnits("0.25", "gwei"),
         // }
-    
+
         // const data = Dmail_contract.interface.encodeFunctionData("send_mail", [
         //   `${this.address}@dmail.ai`,
         //   `${this.address}@dmail.ai`
         // ]);
         // tx.data = data;
-        let gasLimit = await Dmail_contract.estimateGas.send_mail(`${this.address}@dmail.ai`,`${this.address}@dmail.ai`)
-        let response = await Dmail_contract.send_mail(`${this.address}@dmail.ai`,`${this.address}@dmail.ai`);
+        let gasLimit = await Dmail_contract.estimateGas.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`)
+        let response = await Dmail_contract.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`);
         console.log(`${this.address}@dmail.ai`)
         let tx = await response.wait();
         console.log('Dmail 发送成功', tx.transactionHash);
         console.log(`https://explorer.zksync.io/tx/${tx.transactionHash}`)
         return tx.transactionHash;
-      }
+    }
+
+
+
+    async claim_karatdao_airdrop() {
+        const KARATDAO_CONTRACT_Address = "0xDe3674AeBc9faA78e731df8852a7eE29A1e9f9BE"
+        const abi = [{ "inputs": [{ "internalType": "address", "name": "_address", "type": "address" }, { "internalType": "uint256", "name": "_number", "type": "uint256" }, { "internalType": "bytes32[]", "name": "_array", "type": "bytes32[]" }], "name": "claim", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
+        const KARATDAO_CONTRACT = new ethers.Contract(KARATDAO_CONTRACT_Address, abi, this.signer);
+        const NonceResponse = await axios.post('https://api.karatdao.com/action', {
+            method: 'siwe/get_nonce',
+            params: {}
+        }, {
+            credentials: 'omit',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+                'Accept': '*/*',
+                'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+                'content-type': 'application/json',
+                'ref': 'https://karatdao.com/network/airdrop',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-site'
+            },
+            referrer: 'https://karatdao.com/',
+            mode: 'cors'
+        });
+        const nonce = NonceResponse?.data?.result?.nonce;
+        const issuedAt = new Date().toISOString();
+
+        const message = `karatdao.com wants you to sign in with your Ethereum account:\n${this.address}\n\nSigning is safe and no transactions will be initiated.\n\nURI: https://karatdao.com\nVersion: 1\nChain ID: 1\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+
+
+        // Sign the message
+        const signature = await this.signer.signMessage(message);
+
+        console.log("Signature:", signature);
+        const Loginresponse = await axios.post('https://api.karatdao.com/action', {
+            credentials: 'omit',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+                'Accept': '*/*',
+                'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+                'content-type': 'application/json',
+                'ref': 'https://karatdao.com/network/airdrop',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-site'
+            },
+            referrer: 'https://karatdao.com/',
+            body: JSON.stringify({
+                method: 'siwe/verify',
+                params: {
+                    signature: signature,
+                    message: message
+                }
+            }),
+            method: 'POST',
+            mode: 'cors'
+        });
+        console.log('Token:', Loginresponse.data);
+
+
+
+
+    }
+
+
+
+}
+
+async function claim_karatdao_airdrop() {
+    const privateKey = "93d9ed83fe3ecf64297cc953aabed8eb50100fd343eb7611074ed36d298eb94c"; // Replace with your own private key
+
+    // Create a new wallet instance with the private key
+    const wallet = new ethers.Wallet(privateKey);
+    console.log("address is", wallet.address)
+    const BeginResponse = await axios.post('https://api.karatdao.com/action', {
+        method: 'community/get_communities',
+        params: {}
+    }, {
+        credentials: 'omit',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'content-type': 'application/json',
+            'ref': 'https://karatdao.com/network/airdrop',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site'
+        },
+        referrer: 'https://karatdao.com/',
+        mode: 'cors'
+    });
+    console.log(BeginResponse.data);
+    const VisitResponse = axios.post('https://api.karatdao.com/action', {
+        "method": "account/record_wallet_info",
+        "params": {
+            "address": wallet.address,
+        }
+    }, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0",
+            "Accept": "*/*",
+            "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
+            "content-type": "application/json",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site"
+        },
+        credentials: "omit",
+        referrer: "https://karatdao.com/"
+    })
+    console.log(VisitResponse.data);
+
+
+    const NonceResponse = await axios.post('https://api.karatdao.com/action', {
+        method: 'siwe/get_nonce',
+        params: {}
+    }, {
+        credentials: 'omit',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'content-type': 'application/json',
+            'ref': 'https://karatdao.com/network/airdrop',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site'
+        },
+        referrer: 'https://karatdao.com/',
+        mode: 'cors'
+    });
+    const nonce = NonceResponse?.data?.result?.nonce;
+    console.log("nonce is", nonce)
+    const issuedAt = new Date().toISOString();
+
+
+    const message = `karatdao.com wants you to sign in with your Ethereum account:\n${wallet.address}\n\nSigning is safe and no transactions will be initiated.\n\nURI: https://karatdao.com\nVersion: 1\nChain ID: 1\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+
+    console.log("message is", message)
+    // Sign the message
+    const signature = await wallet.signMessage(message);
+
+    console.log("Signature:", signature);
+    console.log(JSON.stringify({
+        method: 'siwe/verify',
+        params: {
+            signature: signature,
+            message: message
+        }
+    }))
+    const Loginresponse = await axios.post('https://api.karatdao.com/action', {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'content-type': 'application/json',
+            'ref': 'https://karatdao.com/network/airdrop',
+
+        },
+        referrer: 'https://karatdao.com/',
+        body: JSON.stringify({
+            method: 'siwe/verify',
+            params: {
+                signature: signature,
+                message: message
+            }
+        }),
+        method: 'POST',
+    });
+
+
+
+
+    console.log('Token:', Loginresponse.data);
+
+
+
 
 
 
 }
 
 
-
-
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
-
     // const accounts =  await ethAccount('keys.csv'); 
-
     // const { Num, OkxAdress,address, privateKey } = accounts[6];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.zklite_deposit()
+    // await project.()
+    //await claim_karatdao_airdrop()
+
+
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };

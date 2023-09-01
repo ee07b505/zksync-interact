@@ -31,8 +31,15 @@ class ProjectManager {
             this.currentProject = project;
             const task = project.getNextTask();
             if (task) {
-                await project[task]();
-            } else {
+                const numParams = project[task].length; // 获取函数接收的参数数量
+                if (numParams === 0) {
+                    console.log(`Running task ${task}...`);
+                    await project[task]();
+                }
+                if (numParams === 1) {
+                console.log(`Running task ${task} with ${numParams} parameters...`);
+                await project[task](task);
+            }} else {
                 console.log(`All tasks completed.`);
                 break;
             }
@@ -40,7 +47,7 @@ class ProjectManager {
             const maxSeconds = 2 * 60;
             const totalSeconds = Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds);//减去4秒
             console.log(`sleep ${totalSeconds} seconds ...`)
-            //await sleep(totalSeconds)
+            await sleep(totalSeconds)
 
 
 
