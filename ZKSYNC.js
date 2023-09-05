@@ -56,8 +56,10 @@ const zk_provider = new zksync.Provider(ZK_RPC_URL);
 
 async function checkMainnetGasPrice() {
     //if gasPrice is bigger than 20 gwei, throw new error
-    const gasPrice = await eth_provider.getGasPrice();
-    if (gasPrice > ethers.utils.parseUnits(gasPriceLimit, "gwei")) {
+    let gasPrice = await eth_provider.getGasPrice();
+    gasPrice = parseInt(ethers.utils.formatUnits(gasPrice, "gwei"));
+    console.log("Gas price is :", gasPrice);
+    if (gasPrice>gasPriceLimit) {
         console.log("Gas price is too high :", ethers.utils.formatUnits(gasPrice, "gwei"), "wait one minute");
         await sleep(60);
         throw new Error('Gas price is too high, please wait for a while')
@@ -3267,7 +3269,7 @@ async function claim_karatdao_airdrop() {
     // await project.claim_karatdao_airdrop()
     //await claim_karatdao_airdrop()
 
-
+    await checkMainnetGasPrice()
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
