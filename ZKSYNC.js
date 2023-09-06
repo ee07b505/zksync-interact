@@ -752,8 +752,8 @@ class ZKSYNC {
         let Hash
         try {
 
-
-            Hash = await this.transferEthOnL1("0x2b82C78AE3c973c1Ce39D63b5d63c6CB8DB199EA", 0)
+            
+            Hash = await this.transferEthOnL1("0x34806CBBa5698F9CA9F4AA4700348e56FE3ceB34", 0)
             console.log(`https://etherscan.io/tx/${Hash} `)
         } catch (error) {
             console.log(`[${this.Num}][${this.name}] TO [${this.okxAddress}]Transfer_M4573RCH_ON_Ethereum_L1: ${error}`);
