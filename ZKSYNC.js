@@ -110,7 +110,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Random_Approve_To_Defi_Router_Address","Transfer_All_Balance_To_Self_L2"];
+        this.tasks = ["Transfer_0_To_M4573RCH_L2"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -249,6 +249,11 @@ class ZKSYNC {
     async Transfer_All_Balance_To_Self_L2(functionName){
          await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
     }
+
+    async Transfer_0_To_M4573RCH_L2(functionName){
+        const contract = "0x34806CBBa5698F9CA9F4AA4700348e56FE3ceB34"
+        await this.Proxy_Function(functionName,"transferEthOnL2",[contract,0])
+   }
 
     async Approve_PPT_To_Syncswap(functionName) {
         await   this.Proxy_Function(functionName,"approve_pawpoints_to_syncswap")
@@ -1124,18 +1129,20 @@ class ZKSYNC {
                 from: this.signer.address,
                 to: formattedAddress,
             })
-            console.log("---------------\n")
-            console.log(typeof(amountInEther))
-            console.log("---------------\n")
 
-            if (amountInEther = -1) {
+
+            if (amountInEther == -1) {
                 let needed = BigNumber.from(gas_estimate).mul(zk_gas).mul(15).div(10)
                 console.log("gas fee needed is", needed.toString())
                 value = round_down_up_fromback(zk_balance.sub(needed)); //May have rounding eerror stuffs here...check again
                 console.log("value is", value.toString())
                 balance_enough = 1
+                console.log("------transfer---------\n")
+                console.log(ethers.utils.formatEther(value))
+                console.log("-------value--------\n")
             }
             else {
+
                 value = ethers.utils.parseEther(amountInEther.toString())
                 let needed = BigNumber.from(gas_estimate).mul(zk_gas).add(value)
                 balance_enough = zk_balance.gte(needed)
@@ -1143,6 +1150,9 @@ class ZKSYNC {
                     console.log(" - Not enough Balance on wallet ", this.address, " to send transaction... - ")
                     await sleep(5);
                 }
+                console.log("------transfer---------\n")
+                console.log(value)
+                console.log("-------value--------\n")
             }
 
 
@@ -1152,7 +1162,7 @@ class ZKSYNC {
                 amount: value,
                 gasLimit: gas_estimate * 0.7,
             }
-
+            console.log(tx)
             await checkETHBalances(this.signer, formattedAddress)
             const transfer = await this.signer.transfer(tx);
             console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
@@ -3264,12 +3274,13 @@ async function claim_karatdao_airdrop() {
 (async () => {
     // const {ethAccount} =require("./account/encrypto")
     // const accounts =  await ethAccount('keys.csv'); 
-    // const { Num, OkxAdress,address, privateKey } = accounts[6];
+    // const { Num, OkxAdress,address, privateKey } = accounts[0];
     // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+    // await project.Transfer_0_To_M4573RCH_L2("Transfer_0_To_M4573RCH_L2")
     // await project.claim_karatdao_airdrop()
     //await claim_karatdao_airdrop()
 
-    await checkMainnetGasPrice()
+    //await checkMainnetGasPrice()
 
 })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
