@@ -110,7 +110,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Transfer_0_To_M4573RCH_L2"];
+        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -2708,7 +2708,7 @@ class ZKSYNC {
             ]
             const randomIndex = Math.floor(Math.random() * tokenList.length);
             const tokenContract = new ethers.Contract(tokenList[randomIndex], erc20Abi, this.signer);
-            const poolAddressList = ["0x2da10a1e27bf85cedd8ffb1abbe97e53391c0295", "0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d", "0x8B791913eB07C32779a16750e3868aA8495F5964"]
+            const poolAddressList = ["0x2da10a1e27bf85cedd8ffb1abbe97e53391c0295", "0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d", "0x8B791913eB07C32779a16750e3868aA8495F5964","0xf8b59f3c3Ab33200ec80a8A58b2aA5F5D2a8944C","0xfd505702b37Ae9b626952Eb2DD736d9045876417","0xfd505702b37Ae9b626952Eb2DD736d9045876417","0xd999e16e68476bc749a28fc14a0c3b6d7073f50c","0x18381c0f738146Fb694DE18D1106BdE2BE040Fa4"]
             const randomPoolIndex = Math.floor(Math.random() * poolAddressList.length);
             const poolAddress = poolAddressList[randomPoolIndex]
             const gasLimit = generateRandomAmount(1000000, 1020000, 0)
