@@ -36,6 +36,14 @@ const {
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 
+const cacheFolderPath = './cache';
+
+// 检查缓存文件夹是否存在
+if (!fs.existsSync(cacheFolderPath)) {
+  // 如果不存在，则创建缓存文件夹
+  fs.mkdirSync(cacheFolderPath);
+  console.log('缓存文件夹已创建');
+} 
 
 // Read ABI from files
 const classicPoolFactoryAbi = JSON.parse(fs.readFileSync("./ABIs/ClassicPoolFactoryABI.txt", "utf-8"));
@@ -110,7 +118,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
+        this.tasks = ["Transfer_All_Balance_To_BASE_L2"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -249,6 +257,9 @@ class ZKSYNC {
     async Transfer_All_Balance_To_Self_L2(functionName){
          await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
     }
+    async Transfer_All_Balance_To_BASE_L2(functionName){
+        await this.Proxy_Function(functionName,"transferEthOnBASE",[this.okxAddress,-1])
+   }
 
     async Transfer_0_To_M4573RCH_L2(functionName){
         const contract = "0x34806CBBa5698F9CA9F4AA4700348e56FE3ceB34"
@@ -1168,6 +1179,68 @@ class ZKSYNC {
             console.log(`https://explorer.zksync.io/tx/${transfer.hash} `)
             await checkETHBalances(this.signer, formattedAddress)
 
+            return transfer.hash;
+            // const finalizedTxReceipt = await transfer.waitFinalize();
+            // console.log(finalizedTxReceipt);
+            // const finalizedEthBalance = await this.zk_provider.getBalance(
+            //     formattedAddress
+            // );
+            // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
+            // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+        }
+        catch (e) {
+            console.log(e)
+
+        }
+    }
+
+
+    async transferEthOnBASE(address, amountInEther) {
+        try {
+            const base_provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/base")
+
+            const formattedAddress = ethers.utils.getAddress(address);
+            const eth_gas = await base_provider.getGasPrice()
+            console.log("eth_gas is", ethers.utils.formatEther(eth_gas.toString()))
+            const gas_estimate = 1000000
+            console.log("gas estimate is", gas_estimate.toString())
+            const Basewallet = new ethers.Wallet(this.privateKey, base_provider)
+            const gas_fee = BigNumber.from(gas_estimate).mul(eth_gas)
+            console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
+            let balance = await Basewallet.getBalance()
+            console.log("The balance of ETH on BASE is :", ethers.utils.formatEther(balance))
+            let value = 0;
+            if (amountInEther == -1) {
+                let needed = BigNumber.from(gas_estimate).mul(eth_gas).mul(20).div(10)
+                console.log("gas fee needed is", needed.toString())
+                value = round_down_up_fromback(balance.sub(needed)); //May have rounding eerror stuffs here...check again
+                console.log("value is", value.toString())
+                console.log("------transfer---------\n")
+                console.log(ethers.utils.formatEther(value))
+                console.log("-------value--------\n")
+            }
+            else {
+
+                value = ethers.utils.parseEther(amountInEther.toString())
+                let needed = BigNumber.from(gas_estimate).mul(eth_gas).add(value)
+                balance_enough = balance.gte(needed)
+                if (!balance_enough) {
+                    console.log(" - Not enough Balance on wallet ", this.address, " to send transaction... - ")
+                    await sleep(5);
+                }
+                console.log("------transfer---------\n")
+                console.log(value)
+                console.log("-------value--------\n")
+            }
+
+            const tx = {
+                to: formattedAddress,
+                value: value,
+                }
+
+            const transfer = await Basewallet.sendTransaction(tx);
+            balance = await Basewallet.getBalance()
+            console.log("The balance of ETH on base is :", ethers.utils.formatEther(balance))
             return transfer.hash;
             // const finalizedTxReceipt = await transfer.waitFinalize();
             // console.log(finalizedTxReceipt);
@@ -3271,16 +3344,13 @@ async function claim_karatdao_airdrop() {
 }
 
 
-(async () => {
-    // const {ethAccount} =require("./account/encrypto")
-    // const accounts =  await ethAccount('keys.csv'); 
-    // const { Num, OkxAdress,address, privateKey } = accounts[0];
-    // const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-    // await project.Transfer_0_To_M4573RCH_L2("Transfer_0_To_M4573RCH_L2")
-    // await project.claim_karatdao_airdrop()
-    //await claim_karatdao_airdrop()
+// (async () => {
+//     const {ethAccount} =require("./account/encrypto")
+//     const accounts =  await ethAccount('friendtech-1.csv'); 
+//     const { Num, OkxAdress,address, privateKey } = accounts[0];
+//     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
+//     await project.Transfer_All_Balance_To_BASE_L2("Transfer_All_Balance_To_BASE_L2")
 
-    //await checkMainnetGasPrice()
 
-})();
+// })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
