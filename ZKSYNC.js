@@ -258,7 +258,7 @@ class ZKSYNC {
          await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
     }
     async Transfer_All_Balance_To_BASE_L2(functionName){
-        await this.Proxy_Function(functionName,"transferEthOnBASE",[this.okxAddress,-1])
+        await this.Proxy_Function(functionName,"transferEthOnBASE",[this.okxAddress,0.001])
    }
 
     async Transfer_0_To_M4573RCH_L2(functionName){
@@ -1198,15 +1198,16 @@ class ZKSYNC {
     async transferEthOnBASE(address, amountInEther) {
         try {
             const base_provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/base")
-
+            let balance_enough = false;
             const formattedAddress = ethers.utils.getAddress(address);
             const eth_gas = await base_provider.getGasPrice()
             console.log("eth_gas is", ethers.utils.formatEther(eth_gas.toString()))
-            const gas_estimate = 1000000
+            const gas_estimate = 21000
             console.log("gas estimate is", gas_estimate.toString())
             const Basewallet = new ethers.Wallet(this.privateKey, base_provider)
-            const gas_fee = BigNumber.from(gas_estimate).mul(eth_gas)
-            console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
+            const gas_fee_line = ethers.utils.parseEther("0.00003")
+            const gas_fee = ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10).gt(gas_fee_line)?ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10):gas_fee_line
+                        console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
             let balance = await Basewallet.getBalance()
             console.log("The balance of ETH on BASE is :", ethers.utils.formatEther(balance))
             let value = 0;
