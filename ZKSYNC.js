@@ -118,7 +118,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Transfer_All_Balance_To_BASE_L2"];
+        this.tasks = ["Transfer_ALL_Balance_To_BASE_L2"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -257,8 +257,8 @@ class ZKSYNC {
     async Transfer_All_Balance_To_Self_L2(functionName){
          await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
     }
-    async Transfer_All_Balance_To_BASE_L2(functionName){
-        await this.Proxy_Function(functionName,"transferEthOnBASE",[this.okxAddress,0.001])
+    async Transfer_ALL_Balance_To_BASE_L2(functionName){
+        await this.Proxy_Function(functionName,"transferEthOnBASE",[this.okxAddress,-1])
    }
 
     async Transfer_0_To_M4573RCH_L2(functionName){
@@ -1205,16 +1205,15 @@ class ZKSYNC {
             const gas_estimate = 21000
             console.log("gas estimate is", gas_estimate.toString())
             const Basewallet = new ethers.Wallet(this.privateKey, base_provider)
-            const gas_fee_line = ethers.utils.parseEther("0.00003")
+            const gas_fee_line = ethers.utils.parseEther("0.00004")
             const gas_fee = ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10).gt(gas_fee_line)?ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10):gas_fee_line
-                        console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
+            console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
             let balance = await Basewallet.getBalance()
             console.log("The balance of ETH on BASE is :", ethers.utils.formatEther(balance))
             let value = 0;
             if (amountInEther == -1) {
-                let needed = BigNumber.from(gas_estimate).mul(eth_gas).mul(20).div(10)
-                console.log("gas fee needed is", needed.toString())
-                value = round_down_up_fromback(balance.sub(needed)); //May have rounding eerror stuffs here...check again
+
+                value = round_down_up_fromback(balance.sub(gas_fee)); //May have rounding eerror stuffs here...check again
                 console.log("value is", value.toString())
                 console.log("------transfer---------\n")
                 console.log(ethers.utils.formatEther(value))
@@ -1237,6 +1236,8 @@ class ZKSYNC {
             const tx = {
                 to: formattedAddress,
                 value: value,
+                gasPrice: eth_gas,
+                gasLimit: gas_estimate,
                 }
 
             const transfer = await Basewallet.sendTransaction(tx);
