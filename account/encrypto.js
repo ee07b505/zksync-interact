@@ -86,7 +86,9 @@ async function writeEncryptedToCsvFile(fileName, data) {
     path: fileName,
     header: [
       { id: 'address', title: 'Address' },
-      { id: 'encryptedPrivateKey', title: 'Encrypted Private Key' }
+      { id: 'encryptedPrivateKey', title: 'Encrypted Private Key' },
+      { id: 'okxAddress', title: 'OKX Address' }
+
     ]
   });
   await csvWriter.writeRecords(Object.values(data));
@@ -116,7 +118,7 @@ async function encryptEthPrivateKeyToCSV(fileName, encryptedFileName = 'encrypte
   // 加密所有私钥并构造新的数据结构
   const encryptedRecords = records.map((record) => {
     const encryptedPrivateKey = encryptPrivateKey(record.encryptedPrivateKey, password);
-    return { address: record.address, encryptedPrivateKey };
+    return { address: record.address, encryptedPrivateKey, okxAddress: record.okxAddress };
   });
 
   // 将加密后的数据写入新的 CSV 文件
@@ -145,8 +147,8 @@ async function main() {
 
 if (require.main === module) {
     //console.log(ethAccount2('keys.csv', 'account.csv'));
-     ethAccount2('keys2.csv', 'account2.csv');
-    //encryptEthPrivateKeyToCSV('account.csv', 'encrypted_keys.csv');
+    //ethAccount2('keys2.csv', 'account2.csv');
+    encryptEthPrivateKeyToCSV('baseaccounts.csv', 'encrypted_keys.csv');
     //main();
 }
 module.exports = { ethAccount,readCsvFile };
