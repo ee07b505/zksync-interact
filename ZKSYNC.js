@@ -69,7 +69,7 @@ async function checkMainnetGasPrice() {
     console.log("Gas price is :", gasPrice);
     if (gasPrice>gasPriceLimit) {
         console.log("Gas price is too high :", ethers.utils.formatUnits(gasPrice, "gwei"), "wait one minute");
-        await sleep(60);
+        await sleep(30);
         throw new Error('Gas price is too high, please wait for a while')
     }
 }
@@ -118,7 +118,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Transfer_ALL_Balance_To_BASE_L2"];
+        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -254,6 +254,9 @@ class ZKSYNC {
     async Random_Approve_To_Defi_Router_Address(functionName) {
         await this.Proxy_Function(functionName,"randomApprove")
     }
+    async Random_Approve_To_Defi_Router_Address_Mainnet(functionName) {
+        await this.Proxy_Function(functionName,"randomApproveOnETHmainnet")
+    }
     async Transfer_All_Balance_To_Self_L2(functionName){
          await this.Proxy_Function(functionName,"transferEthOnL2",[this.address,-1])
     }
@@ -266,10 +269,27 @@ class ZKSYNC {
         await this.Proxy_Function(functionName,"transferEthOnL2",[contract,0])
    }
 
+    async Mint_mingwen_On_l2(functionName){
+        await this.Proxy_Function(functionName,"transferMingWenOnL2",[this.address,0])
+    }
+    async Mint_mingwen_On_l1(functionName){
+        await this.Proxy_Function(functionName,"mintMingWenOnL1",[this.address,0])
+    }
+
+    async Mint_Xone_On_l1(functionName){
+        await this.Proxy_Function(functionName,"mintXone",[this.address,0])
+    }
+
+
+   async Transfer_0_To_M4573RCH_L1(functionName){
+    const contract = "0x34806CBBa5698F9CA9F4AA4700348e56FE3ceB34"
+    await this.Proxy_Function(functionName,"transferEthOnL1",[contract,0])
+}
+
+
     async Approve_PPT_To_Syncswap(functionName) {
         await   this.Proxy_Function(functionName,"approve_pawpoints_to_syncswap")
     }
-
 
 
 
@@ -1194,6 +1214,61 @@ class ZKSYNC {
         }
     }
 
+    async transferMingWenOnL2(address, amountInEther) {
+        try {
+            const formattedAddress = ethers.utils.getAddress(address);
+
+            let balance_enough = false;
+            let value = 0;
+            let zk_gas = await zk_provider.getGasPrice()
+            let zk_balance = await this.signer.getBalance()
+            let gas_estimate = await zk_provider.estimateGas({
+                from: this.signer.address,
+                to: formattedAddress,
+            })
+
+
+            if (amountInEther == -1) {
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).mul(15).div(10)
+                console.log("gas fee needed is", needed.toString())
+                value = round_down_up_fromback(zk_balance.sub(needed)); //May have rounding eerror stuffs here...check again
+                console.log("value is", value.toString())
+                balance_enough = 1
+                console.log("------transfer---------\n")
+                console.log(ethers.utils.formatEther(value))
+                console.log("-------value--------\n")
+            }
+            else {
+
+                value = ethers.utils.parseEther(amountInEther.toString())
+                let needed = BigNumber.from(gas_estimate).mul(zk_gas).add(value)
+                balance_enough = zk_balance.gte(needed)
+                if (!balance_enough) {
+                    console.log(" - Not enough Balance on wallet ", this.address, " to send transaction... - ")
+                    await sleep(5);
+                }
+                console.log("------transfer---------\n")
+                console.log(value)
+                console.log("-------value--------\n")
+            }
+
+
+            const tx = {
+                to: formattedAddress,
+                data: "0x646174613a2c7b2270223a227a72632d3230222c226f70223a226d696e74222c227469636b223a227a6b7373222c22616d74223a2231303030227d",
+            }
+            const transfertx = await this.signer.sendTransaction(tx);
+            console.log(`https://www.oklink.com/cn/zksync/tx/${transfertx.hash} `)
+
+            return transfertx.hash;
+
+        }
+        catch (e) {
+            console.log(e)
+
+        }
+    }
+
 
     async transferEthOnBASE(address, amountInEther) {
         try {
@@ -1293,6 +1368,71 @@ class ZKSYNC {
             // );
             // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
             // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+        }
+        catch (e) {
+            console.log(e)
+
+        }
+    }
+
+
+    async mintMingWenOnL1(address, amountInEther) {
+        try {
+            const formattedAddress = ethers.utils.getAddress(address);
+            const eth_gas = await eth_provider.getGasPrice()
+            const gas_estimate = await eth_provider.estimateGas({
+                from: this.L1wallet.address,
+                to: formattedAddress,
+            })
+            console.log("gas estimate is", gas_estimate.toString())
+            const gas_fee = BigNumber.from(gas_estimate).mul(eth_gas)
+            console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
+            let balance = await this.L1wallet.getBalance()
+            console.log("The balance of ETH on L1 is :", ethers.utils.formatEther(balance))
+
+
+            const tx = {
+                gasPrice: eth_gas,
+                from: this.L1wallet.address,
+                to: formattedAddress,
+                value: ethers.utils.parseEther(amountInEther.toString()),
+                data: "0x646174613a746578742f706c61696e3b72756c653d65736970362c7b2270223a226572632d3230222c226f70223a226d696e74222c227469636b223a2265746873222c22616d74223a2231303030227d",
+            }
+            const transfer = await this.L1wallet.sendTransaction(tx);
+            balance = await this.L1wallet.getBalance()
+            console.log("The balance of ETH on L1 is :", ethers.utils.formatEther(balance))
+            return transfer.hash;
+
+        }
+        catch (e) {
+            console.log(e)
+
+        }
+    }
+    async mintXone(address, amountInEther) {
+        const GAS_ADD = process.env['GAS_ADD'] || '2';
+        const GAS_PRIORITY = process.env['GAS_PRIORITY'] || '2'
+        try {
+            const contract ="0x4DCDa2274899d9BbA3Bb6f5A852C107Dd6E4fE1c"
+
+            const gasPrice = await eth_provider.getGasPrice();
+            const maxFeePerGas = await gasPrice.add(ethers.utils.parseUnits(GAS_ADD, "gwei"));
+            let balance = await this.L1wallet.getBalance()
+            console.log("The balance of ETH on L1 is :", ethers.utils.formatEther(balance))
+
+            const tx = {
+                from: this.L1wallet.address,
+                to: contract,
+                value: ethers.utils.parseEther(amountInEther.toString()),
+                maxFeePerGas,
+                maxPriorityFeePerGas: ethers.utils.parseUnits(GAS_PRIORITY, "gwei"),
+                data: "0x67f68fac00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            }
+            const transfer = await this.L1wallet.sendTransaction(tx);
+            balance = await this.L1wallet.getBalance()
+            console.log("The balance of ETH on L1 is :", ethers.utils.formatEther(balance))
+            return transfer.hash;
+
         }
         catch (e) {
             console.log(e)
@@ -2800,6 +2940,55 @@ class ZKSYNC {
         }
     }
 
+
+    async randomApproveOnETHmainnet() {
+        try {
+            const tokenList = [
+                '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                '0x6b175474e89094c44da98b954eedeac495271d0f',
+                '0x0000000000085d4780B73119b644AE5ecd22b376',
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+                '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+                '0x6b3595068778dd592e39a122f4f5a5cf09c90fe2',
+                '0x68a3637bA6E75c0f66B61A42639c4e9fCD3D4824',
+                '0xcc573dcde9a25e7094980c349d3997dc1c57eb79',
+                '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',
+                '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2',
+                "0x2105465Ab589B74747B01AfdAF606d058Fb082BE",
+                "0x4507cEf57C46789eF8d1a19EA45f4216bae2B528",
+                "0x8C7AC134ED985367EADC6F727d79E8295E11435c",
+                "0xFF8d58129d8E097AFbAeE1F59576c722c2B5F7E4",
+                "0x582d872A1B094FC48F5DE31D3B73F2D9bE47def1",
+                "0x50327c6c5a14DCaDE707ABad2E27eB517df87AB5",
+                "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0",
+                "0x4a220E6096B25EADb88358cb44068A3248254675",
+                "0xD850942eF8811f2A866692A623011bDE52a462C1",
+                "0x85F17Cf997934a597031b2E18a9aB6ebD4B9f6a4",
+                "0x3845badAde8e6dFF049820680d1F14bD3903a5d0",
+                "0x046EeE2cc3188071C02BfC1745A6b17c656e3f3d",
+                "0x6982508145454ce325ddbe47a25d4ec3d2311933",
+                "0xc00e94Cb662C3520282E6f5717214004A7f26888"
+
+            ]
+            const randomIndex = Math.floor(Math.random() * tokenList.length);
+            const tokenContract = new ethers.Contract(tokenList[randomIndex], erc20Abi, this.signer);
+            const poolAddressList = ["0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD"]
+            const randomPoolIndex = Math.floor(Math.random() * poolAddressList.length);
+            const poolAddress = poolAddressList[randomPoolIndex]
+            const approveAmount = ethers.utils.parseEther(generateRandomAmount(100000, 90000000, 0).toString())
+            const approveTx = await tokenContract.connect(this.L1wallet).approve(poolAddress, approveAmount);
+            console.log(`https://etherscan.io/tx//${approveTx.hash}`)
+            return approveTx.hash
+
+
+
+        }
+        catch (e) {
+            console.log(e)
+        }
+    }
+
     async checkEralendBalance() {
         const abi = [
             'function balanceOf(address owner) external view returns (uint256)',
@@ -3346,13 +3535,12 @@ async function claim_karatdao_airdrop() {
 }
 
 
+
 // (async () => {
 //     const {ethAccount} =require("./account/encrypto")
-//     const accounts =  await ethAccount('friendtech-1.csv'); 
+//     const accounts =  await ethAccount('keys1.csv'); 
 //     const { Num, OkxAdress,address, privateKey } = accounts[0];
 //     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-//     await project.Transfer_All_Balance_To_BASE_L2("Transfer_All_Balance_To_BASE_L2")
-
-
-// })();
+//     await project.Random_Approve_To_Defi_Router_Address_Mainnet("Random_Approve_To_Defi_Router_Address_Mainnet")
+//  })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
