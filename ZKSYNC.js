@@ -56,6 +56,7 @@ const MuteFactoryABI = JSON.parse(fs.readFileSync("./ABIs/MuteFactoryABI.json", 
 const MutePairABI = JSON.parse(fs.readFileSync("./ABIs/MutePairABI.json", "utf-8"));
 const MuteRouterABI = JSON.parse(fs.readFileSync("./ABIs/MuteRouterABI.json", "utf-8"));
 
+
 const eth_provider = new ethers.providers.JsonRpcProvider(ETH_RPC_URL)
 //const zk_provider = new zksync.Provider("http://43.133.208.250:3030");
 const zk_provider = new zksync.Provider(ZK_RPC_URL);
@@ -118,7 +119,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Random_Approve_To_Defi_Router_Address"];
+        this.tasks = ["Send_Dmail_Interact","Mint_Zkstar_NFT_Interact"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -254,6 +255,9 @@ class ZKSYNC {
     async Random_Approve_To_Defi_Router_Address(functionName) {
         await this.Proxy_Function(functionName,"randomApprove")
     }
+    async Claim_ZKPEPE(functionName) {
+        await this.Proxy_Function(functionName,"claim_zkpepe")
+    }
     async Random_Approve_To_Defi_Router_Address_Mainnet(functionName) {
         await this.Proxy_Function(functionName,"randomApproveOnETHmainnet")
     }
@@ -289,6 +293,16 @@ class ZKSYNC {
 
     async Approve_PPT_To_Syncswap(functionName) {
         await   this.Proxy_Function(functionName,"approve_pawpoints_to_syncswap")
+    }
+    async Mint_Tevaera_ID(functionName){
+        await this.Proxy_Function(functionName,"mint_tevaera_id")
+    }
+    
+    async Send_Dmail_Interact(functionName){
+        await this.Proxy_Function(functionName,"send_dmail")
+    }
+    async Mint_Zkstar_NFT_Interact(functionName){
+        await this.Proxy_Function(functionName,"mint_zkstar_nft")
     }
 
 
@@ -2140,7 +2154,62 @@ class ZKSYNC {
         return signature;
 
     }
+    async mint_tevaera_id(){
+        const TevareIdABI = JSON.parse(fs.readFileSync("./ABIs/tevaera_idABI.json", "utf-8"));
+        const TevareIdAddress = ethers.utils.getAddress("0xd29Aa7bdD3cbb32557973daD995A3219D307721f");
+        const TevareIdContract = new Contract(TevareIdAddress, TevareIdABI, this.signer);
+        const gas_estimate= await TevareIdContract.estimateGas.mintCitizenId({value:ethers.utils.parseEther('0.0003')});
+        console.log(`gasEstimate is ${gas_estimate}`)
+        const gasPrice = await zk_provider.getGasPrice();
+        const overrides = {gasPrice,gasLimit:gas_estimate,value:ethers.utils.parseEther('0.0003')}
+        const response = await TevareIdContract.mintCitizenId(overrides);
+        await response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        return response.hash
+    }
+    
+    async mint_zkstar_nft(){
+        const ZkstarNftABI = JSON.parse(fs.readFileSync("./ABIs/zkstarABI.json", "utf-8"));
+        const ZKSTAR_NFT_ADDRESSES =  [
+            "0xe7Ed1c47E1e2eA6e9126961df5d41798722A7656",
+            "0x53424440d0ead57e599529b42807a0ba1965dd66",
+            "0x406b1195f4916b13513fea102777df5bd4af06eb",
+            "0xf19b7027d37c3321194d6c5f34ea2e6cbc73fa25",
+            "0xd834c621dea708a21b05eaf181115793eaa2f9d9",
+            "0xafec8df7b10303c3514826c9e2222a16f1486bee",
+            "0x56bf83e598ce80299962be937fe0ba54f5d5e2b2",
+            "0x8595d989a96cdbdc1651e3c87ea3d945e0460097",
+            "0x945b1edcd03e1d1ad9255c2b28e1c22f2c819f0e",
+            "0xc92fc3f19645014c392825e3cfa3597412b0d913",
+            "0x808d59a747bfedd9bcb11a63b7e5748d460b614d",
+            "0x8dd8706cbc931c87694e452caa0a83a564753241",
+            "0x8dd3c29f039e932ebd8eac873b8b7a56d17e36c6",
+            "0xca0848cadb25e6fcd9c8ce15bcb8f8da6c1fc519",
+            "0x06d52c7e52e9f28e3ad889ab2083fe8dba735d52",
+            "0x86f39d51c06cac130ca59eabedc9233a49fcc22a",
+            "0xee0d4a8f649d83f6ba5e5c9e6c4d4f6ae846846a",
+            "0xfda7967c56ce80f74b06e14ab9c71c80cb78b466",
+            "0x0d99efcde08269e2941a5e8a0a02d8e5722403fc",
+            "0xf72cf790ac8d93ee823014484fc74f2f1e337bf6"
+        ]
+        const ZkstarNftAddress = ethers.utils.getAddress(ZKSTAR_NFT_ADDRESSES[Math.floor(Math.random() * ZKSTAR_NFT_ADDRESSES.length)]);
+        const ZkstarNftContract = new Contract(ZkstarNftAddress, ZkstarNftABI, this.signer);
+        const minPrice = await ZkstarNftContract.getPrice();
+        console.log(`minPrice is ${ethers.utils.formatEther(minPrice)}`)
+        const nft_id = await ZkstarNftContract.name();
+        console.log(`nft_id is ${nft_id}`)
+        const gas_estimate= await ZkstarNftContract.estimateGas.safeMint(this.signer.address,{value:minPrice});
+        console.log(`gasEstimate is ${gas_estimate}`)
+        const gasPrice = await zk_provider.getGasPrice();
+        const overrides = {gasPrice,gasLimit:gas_estimate,value:minPrice}
+        const response = await ZkstarNftContract.safeMint(this.signer.address,overrides);
+        await response.wait();
+        console.log(`交易已发送，哈希为: ${response.hash}`)
+        return response.hash
 
+
+
+    }
     async revokeUsdcApproval(poolAddress) {
         const usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, this.signer);
         // 估算gas 不好用 会报错
@@ -2766,9 +2835,48 @@ class ZKSYNC {
 
     }
 
+    async claim_zkpepe() {
+        const abis = [{
+            inputs: [{
+                internalType: "bytes32[]",
+                name: "proof",
+                type: "bytes32[]"
+            }, {
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256"
+            }],
+            name: "claim",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function"
+        }]
 
+            try {
+                const address1 = this.address.toLowerCase()
+                const amount = await axios.get(`https://www.zksyncpepe.com/resources/amounts/${address1}.json`);
+                const  proof  = await axios.get(`https://www.zksyncpepe.com/resources/proofs/${address1}.json`);
 
+                //如果amount.data返回为0或者返回其他报错，说明没有资格领取，返回noZkpepe
+                if (amount.data[0] > 0) {
+                const airdropContract = new ethers.Contract('0x95702a335e3349d197036Acb04BECA1b4997A91a', abis, this.signer);
+                const tx = await airdropContract.claim(
+                    proof.data, ethers.utils.parseEther(amount.data[0].toString())
+                )
+                return tx.hash
+                }
 
+                console.log("noZkpepe")
+                return "noZkpepe";
+
+                           
+            } catch (error) {
+                console.log(error)
+            }
+
+        
+
+    }
     async mint_zkapes() {
 
         const abis = [
@@ -3330,24 +3438,10 @@ class ZKSYNC {
         ]
 
         const Dmail_contract = new ethers.Contract(DMAIL_CONTRACT, DMAIL_ABI, this.signer);
-        // const tx = {
-        //   from: this.address,
-        //   to: ethers.utils.getAddress(DMAIL_CONTRACT),
-        //   gasLimit: 1000000,
-        //   gasPrice: ethers.utils.parseUnits("0.25", "gwei"),
-        // }
-
-        // const data = Dmail_contract.interface.encodeFunctionData("send_mail", [
-        //   `${this.address}@dmail.ai`,
-        //   `${this.address}@dmail.ai`
-        // ]);
-        // tx.data = data;
-        let gasLimit = await Dmail_contract.estimateGas.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`)
-        let response = await Dmail_contract.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`);
-        console.log(`${this.address}@dmail.ai`)
+        await Dmail_contract.estimateGas.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`)
+        let response = await Dmail_contract.send_mail(`${this.address}@dmail.ai`, `${this.address}@dmail.ai`)
         let tx = await response.wait();
         console.log('Dmail 发送成功', tx.transactionHash);
-        console.log(`https://explorer.zksync.io/tx/${tx.transactionHash}`)
         return tx.transactionHash;
     }
 
@@ -3538,9 +3632,9 @@ async function claim_karatdao_airdrop() {
 
 // (async () => {
 //     const {ethAccount} =require("./account/encrypto")
-//     const accounts =  await ethAccount('keys1.csv'); 
+//     const accounts =  await ethAccount('1200_meme_keys.csv'); 
 //     const { Num, OkxAdress,address, privateKey } = accounts[0];
 //     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-//     await project.Random_Approve_To_Defi_Router_Address_Mainnet("Random_Approve_To_Defi_Router_Address_Mainnet")
+//     await project.send_dmail();
 //  })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
