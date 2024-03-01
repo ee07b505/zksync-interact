@@ -119,7 +119,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Send_Dmail_Interact","Mint_Zkstar_NFT_Interact"];
+        this.tasks = ["Random_Method"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -282,6 +282,9 @@ class ZKSYNC {
 
     async Mint_Xone_On_l1(functionName){
         await this.Proxy_Function(functionName,"mintXone",[this.address,0])
+    }
+    async Random_Approve_To_Defi_Router_Address_On_Linea(functionName){
+        await this.Proxy_Function(functionName,"randomApproveOnLinea")
     }
 
 
@@ -861,6 +864,35 @@ class ZKSYNC {
         await this.completeTask(1, Hash);
 
     }
+
+    async Random_Method() {
+        console.log(`[${this.Num}][${this.name}]Random_Method is running...`);
+        let Hash
+        try {
+            await checkMainnetGasPrice();
+            const randomNum = Math.random();
+            if (randomNum < 0.4) {
+
+            Hash = await this.interactSelfBuiltContract()
+            }
+            else if (randomNum < 0.7) {
+                Hash = await this.randomApprove()
+            }
+            else {
+                Hash = 'Nothing'
+            }
+            console.log(`https://explorer.zksync.io/tx/${Hash} `)
+
+        } catch (error) {
+            console.log(`[${this.Num}][${this.name}] Random_Method: ${error}`);
+            this.failTask(1, error)
+            return;
+        }
+        await this.completeTask(1, Hash);
+
+    }
+
+
 
 
     async Mint_L0_NFT_AND_CROSS_CHAIN_TO_MATIC() {
@@ -3127,6 +3159,30 @@ class ZKSYNC {
         }
     }
 
+    async randomApproveOnLinea() {
+        try {
+            const tokenList = ["0xc948133e32d2e66c42e1f37a4fe701882f76efe6","0x0f62da7d8b33b31377c65651e5a7950304087762","0x7769d08f1e6575f7251941910a0a70922cbec5f0","0x660edb0a46c3f69be9eff5446318593b9469f9e2","0xa9c98844becdf468c6e0e8c1f7c769bb3b0d1a0b","0x8ce74e606481bbc7078af4781f9eb67afc85a0ce","0x4d4ea476927c9477e9b0157f6a5b17e756a95b02","0x88fb8b507d80cdee623565534f8d8e7eee9eb6ae","0x0f62da7d8b33b31377c65651e5a7950304087762","0x1eb8266c13fa1b7134e0e72eb6d182738b3a75a2","0x2314342912d9968fd3b40a542bdb1fc6b918f35e","0x15837504cc18d5870dcc2d37c8f1b7f56675c53e","0xd5f33d13a1b10b53158e72ce9d5dd29440d3c496","0x682b0b64d076c951d2a4236994c4078f3b5b2de4","0x1eb8266c13fa1b7134e0e72eb6d182738b3a75a2","0x9caab297cf2d0bdfc2453f3ee5f9693ef08a56ee","0x3e7ba3ebbf592b17932b5f88cc04f2a7eaf89559","0x41b94c5867f7f6217c9a30520cb3e793b1ee1b97","0x6f5fdae4676eb2d09af355dda466f3d1d326dbd0","0xdd31477a5979a998daac6f946cbd679cf054f9fe","0x21cfbe1cd2e466e9b9c526afb9a9a3afc2e0662e","0x348054d5cfd5bc222aa8032ebf003caf515549d1","0xae7b4ebf3c7feda18d5a2a85dc37f40260b40ac5","0x81ace61e62d52dc955b2736922f292f00cc91d32","0xcd6baf8e383c046986d8d3ab635b973330ee3a9e","0xb20116ee399f15647bb1eef9a74f6ef3b58bc951","0x7769d08f1e6575f7251941910a0a70922cbec5f0","0x1097db7625ae0a5e705f153ac25ae4b6ee66cca4","0x19ae3642fbccc8ff38cb7d4a7ac2cebf9ed68872","0x2f0b4300074afc01726262d4cc9c1d2619d7297a","0x808d7c71ad2ba3fa531b068a2417c63106bc0949"]
+            const randomIndex = Math.floor(Math.random() * tokenList.length);
+            const LineaProvider = new ethers.providers.JsonRpcProvider('https://1rpc.io/linea')
+            const tokenContract = new ethers.Contract(tokenList[randomIndex], erc20Abi, LineaProvider);
+            const poolAddressList = ["0x2da10A1e27bF85cEdD8FFb1AbBe97e53391C0295","0x8B791913eB07C32779a16750e3868aA8495F5964","0xbE7D1FD1f6748bbDefC4fbaCafBb11C6Fc506d1d","0xf8b59f3c3Ab33200ec80a8A58b2aA5F5D2a8944C","0xfd505702b37Ae9b626952Eb2DD736d9045876417","0x4bba932e9792a2b917d47830c93a9bc79320e4f7","0x18381c0f738146Fb694DE18D1106BdE2BE040Fa4","0x30E63157bD0bA74C814B786F6eA2ed9549507b46","0x36A1aCbbCAfca2468b85011DDD16E7Cb4d673230","0x6e2b76966cbd9cf4cc2fa0d76d24d5241e0abc2f","0x39E098A153Ad69834a9Dac32f0FCa92066aD03f4","0x6C31035D62541ceba2Ac587ea09891d1645D6D07"]
+            const randomPoolIndex = Math.floor(Math.random() * poolAddressList.length);
+            const poolAddress = poolAddressList[randomPoolIndex]
+            const gasLimit = generateRandomAmount(1000000, 1020000, 0)
+            const approveAmount = ethers.utils.parseEther(generateRandomAmount(1000, 900000, 0).toString())
+            const wallet = new ethers.Wallet(this.privateKey,LineaProvider)
+            const approveTx = await tokenContract.connect(wallet).approve(poolAddress, approveAmount, { gasLimit });
+            console.log(`https://www.oklink.com/cn/linea/tx/${approveTx.hash}`)
+            return approveTx.hash
+
+
+
+        }
+        catch (e) {
+            console.log(e)
+        }
+    }   
+
 
     async randomApproveOnETHmainnet() {
         try {
@@ -3711,9 +3767,9 @@ async function claim_karatdao_airdrop() {
 
 // (async () => {
 //     const {ethAccount} =require("./account/encrypto")
-//     const accounts =  await ethAccount('1200_meme_keys.csv'); 
+//     const accounts =  await ethAccount('keys1.csv'); 
 //     const { Num, OkxAdress,address, privateKey } = accounts[0];
 //     const project = new ZKSYNC( Num, address, privateKey,OkxAdress);
-//     await project.send_dmail();
+//     await project.randomApproveOnLinea();
 //  })();
 module.exports = { ZKSYNC, eth_provider, zk_provider };
