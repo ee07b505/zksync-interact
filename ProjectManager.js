@@ -4,7 +4,8 @@ const util = require('util');
 function sleep(seconds) {
     return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 }
-
+const config = JSON.parse(fs.readFileSync("configMainnet.json", "utf-8"));
+const { minSecond, maxSecond } = config;
 
 
 
@@ -43,8 +44,8 @@ class ProjectManager {
                 console.log(`All tasks completed.`);
                 break;
             }
-            const minSeconds = 1 * 10;
-            const maxSeconds = 3 * 10;
+            const minSeconds = minSecond;
+            const maxSeconds = maxSecond;
             const totalSeconds = Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds);//减去4秒
             console.log(`sleep ${totalSeconds} seconds ...`)
             await sleep(totalSeconds)
