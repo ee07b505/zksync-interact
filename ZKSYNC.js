@@ -119,7 +119,7 @@ class ZKSYNC {
         this.signer = new zksync.Wallet(privateKey, zk_provider, eth_provider);
         this.L1wallet = new ethers.Wallet(privateKey, eth_provider)
         this.okxAddress = ethers.utils.getAddress(OkxAdress.trim());
-        this.tasks = ["Send_Dmail_Interact","Mint_Zkstar_NFT_Interact"];
+        this.tasks = ["Transfer_ALL_Balance_To_BASE_Linea"];
         this.taskName = this.tasks[0] + weekNumber;
         this.completedTasks = new Array(this.tasks.length).fill(false);
 
@@ -305,7 +305,9 @@ class ZKSYNC {
         await this.Proxy_Function(functionName,"mint_zkstar_nft")
     }
 
-
+    async Transfer_ALL_Balance_To_BASE_Linea(functionName){
+        await this.Proxy_Function(functionName,"transferEthOnLinea",[this.okxAddress,-1])
+   }
 
 
     async deposit_All_funds_L1_to_L2() {
@@ -892,7 +894,9 @@ class ZKSYNC {
         let Hash
         try {
             // deposit 0.03eth to eralend
-            const amount = ethers.utils.parseEther("0.03");
+            // 余额的85%作为amount
+            const balance = await checkETHBalances(this.signer)
+            const amount = balance.mul(85).div(100)
             await checkMainnetGasPrice();
             Hash = await this.eraLend_deposit(amount)
             console.log(`https://explorer.zksync.io/tx/${Hash} `)
@@ -1347,6 +1351,72 @@ class ZKSYNC {
         }
     }
 
+    async transferEthOnLinea(address, amountInEther) {
+        try {
+            const base_provider = new ethers.providers.JsonRpcProvider("https://1rpc.io/linea")
+            let balance_enough = false;
+            const formattedAddress = ethers.utils.getAddress(address);
+            const eth_gas = await base_provider.getGasPrice()
+            console.log("eth_gas is", ethers.utils.formatEther(eth_gas.toString()))
+            const gas_estimate = 21000
+            console.log("gas estimate is", gas_estimate.toString())
+            const Basewallet = new ethers.Wallet(this.privateKey, base_provider)
+            const gas_fee_line = ethers.utils.parseEther("0.00004")
+            const gas_fee = ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10).gt(gas_fee_line)?ethers.BigNumber.from(eth_gas.toString()).mul(gas_estimate).mul(15).div(10):gas_fee_line
+            console.log("gas fee is", ethers.utils.formatEther(gas_fee.toString()))
+            let balance = await Basewallet.getBalance()
+            console.log("The balance of ETH on Linea is :", ethers.utils.formatEther(balance))
+            let value = 0;
+            if (amountInEther == -1) {
+
+                value = round_down_up_fromback(balance.sub(gas_fee).div(100).mul(50)); //May have rounding eerror stuffs here...check again
+                console.log("value is", value.toString())
+                console.log("------transfer---------\n")
+                console.log(ethers.utils.formatEther(value))
+                console.log("-------value--------\n")
+            }
+            else {
+
+                value = ethers.utils.parseEther(amountInEther.toString())
+                //如果value小于0.0001，就不转账了
+
+                let needed = BigNumber.from(gas_estimate).mul(eth_gas).add(value)
+                balance_enough = balance.gte(needed)
+                if (!balance_enough) {
+                    return "not_enough_balance"
+                }
+                console.log("------transfer---------\n")
+                console.log(value)
+                console.log("-------value--------\n")
+            }
+            if (value.lt(ethers.utils.parseEther("0.0001"))) {
+                console.log("value is too small, will not transfer")
+                return "value is too small, will not transfer"
+            }
+            const tx = {
+                to: formattedAddress,
+                value: value,
+                gasPrice: eth_gas,
+                gasLimit: gas_estimate,
+                }
+
+            const transfer = await Basewallet.sendTransaction(tx);
+            balance = await Basewallet.getBalance()
+            console.log("The balance of ETH on Linea is :", ethers.utils.formatEther(balance))
+            return transfer.hash;
+            // const finalizedTxReceipt = await transfer.waitFinalize();
+            // console.log(finalizedTxReceipt);
+            // const finalizedEthBalance = await this.zk_provider.getBalance(
+            //     formattedAddress
+            // );
+            // const finalizedEthBalanceInEther = ethers.utils.formatEther(finalizedEthBalance.toString());
+            // console.log("The balance of receiver address" ,   formattedAddress  , "is :",finalizedEthBalanceInEther);
+        }
+        catch (e) {
+            console.log(e)
+
+        }
+    }
 
 
     async transferEthOnL1(address, amountInEther) {
@@ -3217,8 +3287,7 @@ class ZKSYNC {
             let nETHBalance = await contract.balanceOf(wallet.address);
 
 
-            //if ethBalance is bigger than 0.1 ETH, deposit 0.1 ETH to EraLend
-            if (ethBalance.gt(ethers.utils.parseEther("0.05")) && ethBalance.gt(amount)) {
+            if (ethBalance.gt(ethers.utils.parseEther("0.005")) && ethBalance.gt(amount)) {
                 console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
                 let gasLimit = await contract.estimateGas.mint({ value: amount });
                 gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
@@ -3228,20 +3297,8 @@ class ZKSYNC {
                 console.timeEnd('EraLend');
                 return tx.transactionHash;
             }
-            //if ethBalance is bigger than 0.01 ETH, deposit 50% ETH to EraLend
-            // else if (ethBalance.gt(ethers.utils.parseEther("0.01"))) {
-            //     amount = ethers.utils.parseEther("0.01");
-            //     console.log('EraLend 充值', `${ethers.utils.formatEther(amount)} ETH`);
-            //     let gasLimit = await contract.estimateGas.mint({ value: amount });
-            //     gasLimit = gasLimit.mul(6).div(10); // 60% gas limit
-            //     let response = await contract.mint({ value: amount, gasLimit });
-            //     let tx = await response.wait();
-            //     console.log('EraLend 充值成功', tx.transactionHash);
-            //     console.timeEnd('EraLend');
-            //     return tx.transactionHash;
-            //     }
 
-            console.log("EraLend ETH 没有足够余额可供充值")
+            throw new error("EraLend ETH 没有足够余额可供充值")
 
 
 
